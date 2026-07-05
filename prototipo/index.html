@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeQuest — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="codequest.css" />
+</head>
+<body data-page="dashboard" data-title="Dashboard">
+  <div class="app-shell" id="shell">
+    <main class="main">
+      <div class="content">
+        <!-- HERO -->
+        <section class="card" style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
+          <div style="position:relative;width:120px;height:120px" id="heroRing">
+            <div style="position:absolute;inset:0;display:grid;place-items:center">
+              <span class="avatar" style="width:78px;height:78px;font-size:26px">DS</span>
+            </div>
+          </div>
+          <div style="flex:1;min-width:220px">
+            <div class="muted">Bem-vindo de volta</div>
+            <div class="display" style="font-size:26px;color:var(--gold)">Level 12 — Aprendiz de LINQ</div>
+            <div style="max-width:420px;margin-top:12px">
+              <div class="xp-bar"><span class="fill" data-pct="50"></span></div>
+              <div class="muted" style="margin-top:6px">1.240 / 2.450 XP · faltam 1.210 pro nível 13</div>
+            </div>
+          </div>
+          <div class="card" style="background:var(--bg-elevated);text-align:center;min-width:130px">
+            <svg class="i-lg" data-lucide="flame" style="color:var(--focus-timer)"></svg>
+            <div class="display" style="font-size:32px;color:var(--focus-timer);line-height:1">12</div>
+            <div class="muted">dias de streak</div>
+          </div>
+        </section>
+
+        <!-- MISSÕES DE HOJE -->
+        <div class="section-title"><svg class="i" data-lucide="swords"></svg> Missões de hoje <a href="missoes.html" class="muted" style="margin-left:auto;font-weight:500">ver todas →</a></div>
+        <div class="grid" style="gap:12px" id="missions"></div>
+
+        <!-- LINHA DE 3 CARDS -->
+        <div class="grid grid-3" style="margin-top:24px">
+          <div class="card hoverable clickable" onclick="location.href='arvore.html'">
+            <div class="section-title" style="margin:0 0 10px"><svg class="i-sm" data-lucide="radar"></svg> Habilidades</div>
+            <canvas id="radar" height="200"></canvas>
+          </div>
+          <div class="card">
+            <div class="section-title" style="margin:0 0 10px"><svg class="i-sm" data-lucide="calendar-days"></svg> Últimos 30 dias</div>
+            <div class="heatmap" id="heatmap"></div>
+            <div class="heatmap-legend">menos <span class="cell" data-l="0"></span><span class="cell" data-l="1"></span><span class="cell" data-l="2"></span><span class="cell" data-l="3"></span><span class="cell" data-l="4"></span> mais</div>
+          </div>
+          <div class="card">
+            <div class="section-title" style="margin:0 0 10px"><svg class="i-sm" data-lucide="rotate-ccw"></svg> Revisões pendentes</div>
+            <div id="revisoes"></div>
+          </div>
+        </div>
+
+        <!-- debug level-up (discreto) -->
+        <button id="debugLevelUp" class="btn btn-ghost" style="margin-top:24px;opacity:.5;font-size:12px" title="Debug: demonstrar level-up">
+          <svg class="i-sm" data-lucide="sparkles"></svg> demo level-up
+        </button>
+      </div>
+    </main>
+  </div>
+  <div id="toast-root"></div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="mock-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function () {
+      function whenReady(fn){ if(window.CQUI) fn(); else document.addEventListener("cqui:ready", fn); }
+      whenReady(function () {
+        const ui = window.CQUI, d = window.CQ;
+
+        // anel de XP do herói
+        document.getElementById("heroRing").insertAdjacentHTML("afterbegin",
+          ui.ring(ui.pct(d.player.xpAtual, d.player.xpProximo), { size: 120, stroke: 8, cls: "gold" }));
+
+        // missões
+        const cont = document.getElementById("missions");
+        cont.innerHTML = d.missoesHoje.map(m => questCard(m)).join("");
+
+        cont.querySelectorAll("[data-complete]").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const card = btn.closest(".quest-card");
+            const m = d.missoesHoje.find(x => x.id == btn.dataset.complete);
+            const r = card.getBoundingClientRect();
+            ui.grantReward(m.xp, m.gold, btn);
+            ui.confettiBurst(r.right - 40, r.top + 20);
+            card.classList.add("done");
+            card.querySelector(".qc-actions").innerHTML = `<span class="qc-check"><svg class="i" data-lucide="check"></svg></span>`;
+            lucide.createIcons({ nameAttr: "data-lucide", root: card });
+          });
+        });
+
+        // radar
+        new Chart(document.getElementById("radar"), {
+          type: "radar",
+          data: {
+            labels: ["LINQ", "Async", "POO", "Coleções", "Exceções", "Delegates"],
+            datasets: [{
+              data: [45, 20, 100, 100, 30, 50],
+              borderColor: "#7c5cff", backgroundColor: "#7c5cff33",
+              pointBackgroundColor: "#f0b429", borderWidth: 2,
+            }],
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: { r: {
+              min: 0, max: 100, ticks: { display: false, stepSize: 25 },
+              grid: { color: "#2d3748" }, angleLines: { color: "#2d3748" },
+              pointLabels: { color: "#9aa7b3", font: { size: 11 } },
+            } },
+          },
+        });
+
+        // heatmap
+        document.getElementById("heatmap").innerHTML =
+          d.heatmap.map(l => `<span class="cell" data-l="${l}"></span>`).join("");
+
+        // revisões
+        document.getElementById("revisoes").innerHTML = d.revisoes.map(r => `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+            <svg class="i-sm" data-lucide="rotate-ccw" style="color:var(--info)"></svg>
+            <span style="flex:1"><b>${r.topico}</b> <span class="muted">· ${r.quando}</span></span>
+            <a href="exercicio.html" class="badge badge-tipo">resolver</a>
+          </div>`).join("") +
+          `<a href="exercicio.html" class="btn btn-ghost btn-block" style="margin-top:12px"><svg class="i-sm" data-lucide="play"></svg> Resolver agora</a>`;
+
+        // debug level-up
+        document.getElementById("debugLevelUp").addEventListener("click", () =>
+          ui.levelUp(13, "Caçador de Bugs"));
+
+        lucide.createIcons({ nameAttr: "data-lucide" });
+        ui.activateRings();
+        ui.fillXpBars();
+      });
+
+      function questCard(m) {
+        const done = m.status === "concluida";
+        return `
+        <div class="quest-card hoverable ${done ? "done" : ""}" style="--dif:var(--${m.dificuldade})">
+          <div class="qc-icon"><svg class="i-lg" data-lucide="scroll-text" style="color:var(--${m.dificuldade})"></svg></div>
+          <div class="qc-body">
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="badge badge-tipo">${m.tipo}</span>
+              <span class="badge badge-dif badge-${m.dificuldade}">${m.dificuldade}</span>
+            </div>
+            <div class="qc-title">${m.titulo}</div>
+            <div class="qc-reward"><span class="xp">+${m.xp} XP</span> · <span class="gd">+${m.gold} gold</span></div>
+          </div>
+          <div class="qc-actions">
+            ${done
+              ? `<span class="qc-check"><svg class="i" data-lucide="check"></svg></span>`
+              : `<button class="btn btn-primary" data-complete="${m.id}"><svg class="i-sm" data-lucide="play"></svg> Iniciar</button>`}
+          </div>
+        </div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeQuest — Exercício</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css" />
+  <link rel="stylesheet" href="codequest.css" />
+  <style>
+    .ex-wrap { max-width: 820px; margin: 0 auto; }
+    .ex-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .opt { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 16px 18px; margin-bottom: 12px;
+      background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); transition: all 150ms ease; cursor: pointer; }
+    .opt:hover { border-color: var(--border-glow); transform: translateY(-1px); }
+    .opt .key { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--bg-elevated); font-weight: 700; font-family: var(--font-code); flex-shrink: 0; }
+    .opt code { font-family: var(--font-code); font-size: 14px; }
+    .opt.selected { border-color: var(--info); background: color-mix(in srgb, var(--info) 10%, var(--bg-surface)); }
+    .opt.correct { border-color: var(--success); background: color-mix(in srgb, var(--success) 14%, var(--bg-surface)); }
+    .opt.correct .key { background: var(--success); color: #04120a; }
+    .opt.wrong { border-color: var(--danger); opacity: .8; }
+    pre code.hljs { border-radius: var(--radius); padding: 16px; font-size: 15px; }
+    .code-editor { position: relative; background: #0a0d13; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .code-editor .gutter { position: absolute; left: 0; top: 0; bottom: 0; width: 40px; padding: 14px 0; text-align: right;
+      color: var(--text-muted); font-family: var(--font-code); font-size: 14px; line-height: 1.6; border-right: 1px solid var(--border); user-select: none; }
+    .code-editor textarea { width: 100%; min-height: 180px; padding: 14px 14px 14px 54px; background: transparent; color: var(--text-primary);
+      font-family: var(--font-code); font-size: 15px; line-height: 1.6; border: none; resize: vertical; }
+    .code-editor textarea:focus { outline: none; }
+    .ex-footer { position: sticky; bottom: 0; display: flex; gap: 12px; justify-content: flex-end; padding: 16px 0;
+      background: linear-gradient(transparent, var(--bg-base) 30%); margin-top: 20px; }
+    .mentor-panel { position: fixed; top: 0; right: 0; width: 380px; max-width: 92vw; height: 100vh; background: var(--bg-elevated);
+      border-left: 1px solid var(--border); box-shadow: -8px 0 24px #00000066; padding: 20px; z-index: 50; overflow-y: auto;
+      transform: translateX(100%); transition: transform 250ms ease; }
+    .mentor-panel.open { transform: none; }
+    .result { border-radius: var(--radius); padding: 20px; margin-top: 20px; display: none; }
+    .result.ok { background: color-mix(in srgb, var(--success) 12%, var(--bg-surface)); border: 1px solid var(--success); }
+    .result.almost { background: color-mix(in srgb, var(--medium) 12%, var(--bg-surface)); border: 1px solid var(--medium); }
+  </style>
+</head>
+<body data-page="exercicio" data-title="Exercício" class="immersive">
+  <div class="app-shell" id="shell">
+    <main class="main">
+      <div class="ex-wrap">
+        <div class="ex-head">
+          <a href="index.html" class="btn btn-ghost"><svg class="i-sm" data-lucide="arrow-left"></svg> Sair</a>
+          <span class="badge badge-tipo" id="exTopico">LINQ</span>
+          <span class="badge badge-dif" id="exDif">medium</span>
+          <div class="spacer" style="flex:1"></div>
+          <div class="chips">
+            <button class="chip selected" data-fmt="multipla">Múltipla escolha</button>
+            <button class="chip" data-fmt="codigo">Código</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="enunciado" style="font-size:17px;line-height:1.6"></div>
+          <div id="exBody" style="margin-top:18px"></div>
+        </div>
+
+        <div class="result" id="result"></div>
+
+        <div class="ex-footer">
+          <button class="btn btn-ghost" id="naoEntendi"><svg class="i-sm" data-lucide="help-circle"></svg> Não entendi</button>
+          <button class="btn btn-primary" id="enviar"><svg class="i-sm" data-lucide="send"></svg> Enviar resposta</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <aside class="mentor-panel" id="mentorPanel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px"><svg class="i" data-lucide="graduation-cap" style="color:var(--info)"></svg><b>Mentor</b></div>
+      <button class="btn btn-ghost" id="mentorClose" aria-label="Fechar"><svg class="i-sm" data-lucide="x"></svg></button>
+    </div>
+    <div class="card" style="background:var(--bg-surface)">
+      <div class="muted" style="margin-bottom:6px">Sobre este exercício:</div>
+      <p>A ordem dos operadores LINQ importa: <code style="font-family:var(--font-code)">Where</code> filtra a coleção original; se você fizer <code style="font-family:var(--font-code)">Select</code> antes, passa a filtrar a projeção. Pense no fluxo de dados como um pipeline.</p>
+    </div>
+    <a href="mentor.html" class="btn btn-info btn-block" style="margin-top:12px"><svg class="i-sm" data-lucide="message-circle"></svg> Abrir chat completo</a>
+  </aside>
+  <div id="toast-root"></div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+  <script src="mock-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function () {
+      function whenReady(fn){ if(window.CQUI) fn(); else document.addEventListener("cqui:ready", fn); }
+      let fmt = "multipla", selected = null, resolvido = false;
+
+      whenReady(function () {
+        const ui = window.CQUI, d = window.CQ;
+        const exMc = d.exercicios.find(e => e.formato === "multipla");
+        const exCode = d.exercicios.find(e => e.formato === "codigo");
+
+        function render() {
+          resolvido = false; selected = null;
+          document.getElementById("result").style.display = "none";
+          const ex = fmt === "multipla" ? exMc : exCode;
+          document.getElementById("exTopico").textContent = ex.topico;
+          const dif = document.getElementById("exDif");
+          dif.textContent = ex.dificuldade; dif.className = "badge badge-dif badge-" + ex.dificuldade;
+          document.getElementById("enunciado").textContent = ex.enunciado;
+          const body = document.getElementById("exBody");
+
+          if (fmt === "multipla") {
+            body.innerHTML = ex.opcoes.map(o => `
+              <button class="opt" data-id="${o.id}" data-correct="${o.correta}">
+                <span class="key">${o.id.toUpperCase()}</span><code>${escapeHtml(o.texto)}</code>
+              </button>`).join("");
+            body.querySelectorAll(".opt").forEach(o => o.addEventListener("click", () => {
+              if (resolvido) return;
+              body.querySelectorAll(".opt").forEach(x => x.classList.remove("selected"));
+              o.classList.add("selected"); selected = o;
+            }));
+          } else {
+            body.innerHTML = `
+              <div class="code-editor">
+                <div class="gutter">${ex.codigo.split("\n").map((_, i) => i + 1).join("<br>")}</div>
+                <textarea spellcheck="false" id="codeArea">${escapeHtml(ex.codigo)}</textarea>
+              </div>
+              <p class="muted" style="margin-top:8px">Dica: lance a exceção antes de alterar o saldo.</p>`;
+          }
+          lucide.createIcons({ nameAttr: "data-lucide", root: body });
+        }
+
+        document.querySelectorAll("[data-fmt]").forEach(c => c.addEventListener("click", () => {
+          document.querySelectorAll("[data-fmt]").forEach(x => x.classList.remove("selected"));
+          c.classList.add("selected"); fmt = c.dataset.fmt; render();
+        }));
+
+        document.getElementById("enviar").addEventListener("click", () => {
+          const ex = fmt === "multipla" ? exMc : exCode;
+          const res = document.getElementById("result");
+          const btn = document.getElementById("enviar");
+          const acerto = fmt === "multipla" ? (selected && selected.dataset.correct === "true") : true; // código: sempre "aceita" no protótipo
+          resolvido = true;
+
+          if (fmt === "multipla") {
+            document.querySelectorAll(".opt").forEach(o => {
+              if (o.dataset.correct === "true") o.classList.add("correct");
+              else if (o.classList.contains("selected")) o.classList.add("wrong");
+            });
+          }
+
+          if (acerto) {
+            res.className = "result ok"; res.style.display = "block";
+            res.innerHTML = `<div style="display:flex;align-items:center;gap:12px">
+              <span class="qc-check" style="background:color-mix(in srgb,var(--success) 25%,transparent);color:var(--success);box-shadow:0 0 12px #3fb95055"><svg class="i" data-lucide="check"></svg></span>
+              <div><b style="font-size:18px;color:var(--success)">Mandou bem!</b><div class="muted">+${ex.xp} XP · +${ex.gold} gold creditados.</div></div></div>`;
+            ui.grantReward(ex.xp, ex.gold, btn);
+            const r = btn.getBoundingClientRect(); ui.confettiBurst(r.left, r.top);
+          } else {
+            res.className = "result almost"; res.style.display = "block";
+            res.innerHTML = `<div style="display:flex;gap:12px">
+              <svg class="i-lg" data-lucide="lightbulb" style="color:var(--medium)"></svg>
+              <div><b style="font-size:17px;color:var(--medium)">Quase!</b><p style="margin:6px 0">${ex.feedbackErro}</p>
+              <span class="badge badge-tipo"><svg class="i-sm" data-lucide="rotate-ccw"></svg> volta pra revisão em 1 dia</span></div></div>`;
+          }
+          lucide.createIcons({ nameAttr: "data-lucide", root: res });
+          res.scrollIntoView({ behavior: ui.reduceMotion() ? "auto" : "smooth", block: "center" });
+        });
+
+        // mentor panel
+        const mp = document.getElementById("mentorPanel");
+        document.getElementById("naoEntendi").addEventListener("click", () => mp.classList.add("open"));
+        document.getElementById("mentorClose").addEventListener("click", () => mp.classList.remove("open"));
+
+        render();
+        lucide.createIcons({ nameAttr: "data-lucide" });
+      });
+
+      function escapeHtml(s){ return s.replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c])); }
+    })();
+  </script>
+</body>
+</html>

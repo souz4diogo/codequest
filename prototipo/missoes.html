@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeQuest — Missões</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="codequest.css" />
+</head>
+<body data-page="missoes" data-title="Missões">
+  <div class="app-shell" id="shell">
+    <main class="main">
+      <div class="content">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div class="chips" id="tabs">
+            <button class="chip selected" data-tab="hoje">Hoje</button>
+            <button class="chip" data-tab="semana">Semana</button>
+            <button class="chip" data-tab="historico">Histórico</button>
+          </div>
+          <button class="btn btn-primary" style="margin-left:auto" id="novaMissao"><svg class="i-sm" data-lucide="plus"></svg> Missão</button>
+        </div>
+
+        <!-- BOSS FIGHT -->
+        <div id="bossCard" style="margin-top:20px"></div>
+
+        <div class="grid" style="gap:12px;margin-top:20px" id="lista"></div>
+      </div>
+    </main>
+  </div>
+  <div id="toast-root"></div>
+
+  <!-- MODAL NOVA MISSÃO -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-head">
+        <div><h3>Nova missão</h3><div class="muted">Crie manualmente ou peça pra IA estruturar.</div></div>
+        <button class="btn btn-ghost" id="modalClose" aria-label="Fechar"><svg class="i-sm" data-lucide="x"></svg></button>
+      </div>
+      <div class="chips" id="modalTabs" style="margin-bottom:16px">
+        <button class="chip selected" data-mtab="manual"><svg class="i-sm" data-lucide="pencil"></svg> Criar manual</button>
+        <button class="chip" data-mtab="ia"><svg class="i-sm" data-lucide="sparkles"></svg> Pedir à IA</button>
+      </div>
+
+      <div id="paneManual">
+        <div class="field"><label>Título</label><input class="input" placeholder="Ex.: Praticar herança com um exemplo real" /></div>
+        <div class="field"><label>Esforço</label>
+          <select class="input" id="esforco">
+            <option value="rapida">Rápida (≤ 15 min)</option>
+            <option value="media" selected>Média (≤ 1h)</option>
+            <option value="longa">Longa (&gt; 1h)</option>
+          </select>
+        </div>
+        <div class="card" style="background:var(--bg-base);display:flex;align-items:center;gap:10px">
+          <svg class="i" data-lucide="zap" style="color:var(--xp)"></svg>
+          <div>Faixa de XP: <b id="faixaXp" style="color:var(--xp)">30–50 XP</b><div class="muted">O XP final é validado pelo backend (RN04).</div></div>
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top:16px" id="criarManual"><svg class="i-sm" data-lucide="check"></svg> Criar missão</button>
+      </div>
+
+      <div id="paneIA" style="display:none">
+        <div class="field"><label>O que você quer treinar?</label>
+          <textarea class="textarea" id="iaPrompt" placeholder="Ex.: quero praticar LINQ com agrupamentos e joins"></textarea>
+        </div>
+        <button class="btn btn-info btn-block" id="gerarIA"><svg class="i-sm" data-lucide="sparkles"></svg> Gerar missão</button>
+        <div id="iaPreview" style="margin-top:16px;display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="mock-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function () {
+      function whenReady(fn){ if(window.CQUI) fn(); else document.addEventListener("cqui:ready", fn); }
+      const FAIXAS = { rapida: "10–20 XP", media: "30–50 XP", longa: "60–100 XP" };
+
+      whenReady(function () {
+        const ui = window.CQUI, d = window.CQ;
+
+        // boss
+        const b = d.boss;
+        document.getElementById("bossCard").innerHTML = `
+          <div class="card" style="border:2px solid var(--gold);box-shadow:var(--glow-gold);background:
+            radial-gradient(120% 140% at 100% 0%, #f0b42918, transparent 60%), var(--bg-surface)">
+            <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+              <div style="display:grid;place-items:center;width:64px;height:64px;border-radius:12px;background:var(--bg-elevated);border:1px solid var(--gold)">
+                <svg class="i-lg" data-lucide="skull" style="color:var(--gold)"></svg>
+              </div>
+              <div style="flex:1;min-width:200px">
+                <span class="badge badge-tipo" style="color:var(--gold);border-color:var(--gold)">BOSS FIGHT</span>
+                <div class="display" style="font-size:22px;color:var(--gold);margin:6px 0">${b.nome}</div>
+                <div class="muted">${b.descricao}</div>
+                <div style="margin-top:8px">
+                  <div class="muted" style="margin-bottom:4px">Vida do boss · ${b.questoesRestantes}/${b.questoesTotal} questões</div>
+                  <div class="xp-bar"><span class="fill" data-pct="100" style="background:linear-gradient(90deg,var(--gold),#ffd257)"></span></div>
+                </div>
+              </div>
+              <a href="exercicio.html" class="btn btn-primary btn-lg"><svg class="i-sm" data-lucide="swords"></svg> Enfrentar</a>
+            </div>
+          </div>`;
+
+        // lista de missões (mistura hoje + uma extra pra "semana")
+        renderLista("hoje");
+
+        // tabs
+        document.querySelectorAll("#tabs .chip").forEach(t => t.addEventListener("click", () => {
+          document.querySelectorAll("#tabs .chip").forEach(c => c.classList.remove("selected"));
+          t.classList.add("selected");
+          renderLista(t.dataset.tab);
+        }));
+
+        // modal
+        const modal = document.getElementById("modal");
+        const open = () => modal.classList.add("open");
+        const close = () => modal.classList.remove("open");
+        document.getElementById("novaMissao").addEventListener("click", open);
+        document.getElementById("modalClose").addEventListener("click", close);
+        modal.addEventListener("click", e => { if (e.target === modal) close(); });
+
+        document.querySelectorAll("#modalTabs .chip").forEach(t => t.addEventListener("click", () => {
+          document.querySelectorAll("#modalTabs .chip").forEach(c => c.classList.remove("selected"));
+          t.classList.add("selected");
+          const ia = t.dataset.mtab === "ia";
+          document.getElementById("paneManual").style.display = ia ? "none" : "";
+          document.getElementById("paneIA").style.display = ia ? "" : "none";
+        }));
+
+        document.getElementById("esforco").addEventListener("change", e =>
+          document.getElementById("faixaXp").textContent = FAIXAS[e.target.value]);
+
+        document.getElementById("criarManual").addEventListener("click", () => {
+          close(); ui.toast("Missão criada", "gold");
+        });
+
+        document.getElementById("gerarIA").addEventListener("click", () => {
+          const prev = document.getElementById("iaPreview");
+          prev.style.display = "";
+          prev.innerHTML = `
+            <div class="card" style="background:var(--bg-base)">
+              <span class="badge badge-dif badge-medium">medium</span>
+              <div class="qc-title" style="margin-top:8px">Praticar LINQ: agrupamentos e joins</div>
+              <div class="muted">3 exercícios encadeados sobre GroupBy, Join e projeções.</div>
+              <div class="qc-reward" style="margin-top:8px"><span class="xp">+40 XP</span> · <span class="gd">+14 gold</span></div>
+              <div style="display:flex;gap:8px;margin-top:14px">
+                <button class="btn btn-primary" id="aceitarIA"><svg class="i-sm" data-lucide="check"></svg> Aceitar</button>
+                <button class="btn btn-ghost" id="recusarIA">Recusar</button>
+              </div>
+            </div>`;
+          lucide.createIcons({ nameAttr: "data-lucide", root: prev });
+          prev.querySelector("#aceitarIA").addEventListener("click", () => { close(); ui.toast("Missão da IA aceita", "gold"); });
+          prev.querySelector("#recusarIA").addEventListener("click", () => { prev.style.display = "none"; });
+        });
+
+        lucide.createIcons({ nameAttr: "data-lucide" });
+        ui.fillXpBars();
+
+        function renderLista(tab) {
+          const base = d.missoesHoje;
+          let itens = base;
+          if (tab === "semana") itens = base.filter(m => m.tipo === "Semanal");
+          if (tab === "historico") itens = base.map(m => ({ ...m, status: "concluida" }));
+          const lista = document.getElementById("lista");
+          if (!itens.length) {
+            lista.innerHTML = `<div class="card" style="text-align:center;color:var(--text-secondary)">
+              <svg class="i-lg" data-lucide="wind" style="color:var(--text-muted)"></svg>
+              <div style="margin-top:8px">Nenhuma missão aqui — <a href="#" id="empGer">gerar com IA?</a></div></div>`;
+            lucide.createIcons({ nameAttr: "data-lucide", root: lista });
+            lista.querySelector("#empGer").addEventListener("click", e => { e.preventDefault(); document.getElementById("novaMissao").click(); });
+            return;
+          }
+          lista.innerHTML = itens.map(m => {
+            const done = m.status === "concluida";
+            return `<div class="quest-card ${done ? "done" : "hoverable"}" style="--dif:var(--${m.dificuldade})">
+              <svg class="i-lg" data-lucide="scroll-text" style="color:var(--${m.dificuldade})"></svg>
+              <div class="qc-body">
+                <div style="display:flex;gap:8px"><span class="badge badge-tipo">${m.tipo}</span><span class="badge badge-dif badge-${m.dificuldade}">${m.dificuldade}</span></div>
+                <div class="qc-title">${m.titulo}</div>
+                <div class="qc-reward"><span class="xp">+${m.xp} XP</span> · <span class="gd">+${m.gold} gold</span></div>
+              </div>
+              ${done ? `<span class="qc-check"><svg class="i" data-lucide="check"></svg></span>`
+                     : `<a href="exercicio.html" class="btn btn-ghost"><svg class="i-sm" data-lucide="arrow-right"></svg></a>`}
+            </div>`;
+          }).join("");
+          lucide.createIcons({ nameAttr: "data-lucide", root: lista });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

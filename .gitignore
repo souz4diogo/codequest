@@ -1,0 +1,20 @@
+# Markdown / documentação
+*.md
+
+# Lixo do Windows (Zone.Identifier / alternate data streams)
+*Zone.Identifier*
+
+# Claude
+.claude/
+CLAUDE.md
+memory/
+
+# Ambiente / segredos
+.env
+.env.*
+!.env.example
+
+# .NET
+bin/
+obj/
+*.user

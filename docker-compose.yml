@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:17
+    container_name: codequest-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: codequest
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # O app só sobe depois que o Postgres aceita conexões (aplica migration no boot).
+      test: ["CMD-SHELL", "pg_isready -U postgres -d codequest"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: ./CodeQuest
+    container_name: codequest-app
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      # ASP.NET Core lê ConnectionStrings__CodeQuest e sobrepõe o appsettings.
+      ConnectionStrings__CodeQuest: "Host=db;Port=5432;Database=codequest;Username=postgres;Password=postgres"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeQuest — Mentor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css" />
+  <link rel="stylesheet" href="codequest.css" />
+  <style>
+    .chat-wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; height: calc(100vh - var(--topbar-h) - 48px); }
+    .ctx-chip { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; padding: 6px 12px; border-radius: 999px;
+      background: var(--gold-soft); color: var(--gold); border: 1px solid var(--gold); font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+    .ctx-chip button { color: var(--gold); display: grid; place-items: center; }
+    .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 4px; }
+    .msg { display: flex; gap: 10px; max-width: 85%; }
+    .msg .bubble { padding: 12px 16px; border-radius: 14px; line-height: 1.55; }
+    .msg.ia { align-self: flex-start; }
+    .msg.ia .bubble { background: var(--bg-surface); border: 1px solid var(--border); border-top-left-radius: 4px; }
+    .msg.ia .who { color: var(--info); }
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg.user .bubble { background: color-mix(in srgb, var(--info) 16%, var(--bg-surface)); border: 1px solid color-mix(in srgb, var(--info) 40%, transparent); border-top-right-radius: 4px; }
+    .msg .sage { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+      background: color-mix(in srgb, var(--info) 20%, transparent); color: var(--info); }
+    .msg .who { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+    .msg pre { margin-top: 10px; }
+    .msg pre code.hljs { border-radius: 10px; padding: 12px; font-size: 14px; }
+    .save-btn { margin-top: 8px; font-size: 12px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 6px; }
+    .save-btn:hover { color: var(--gold); }
+    .composer { display: flex; gap: 10px; padding-top: 14px; }
+    .composer .input { flex: 1; }
+  </style>
+</head>
+<body data-page="mentor" data-title="Mentor">
+  <div class="app-shell" id="shell">
+    <main class="main">
+      <div class="chat-wrap">
+        <div class="ctx-chip" id="ctxChip">
+          <svg class="i-sm" data-lucide="crosshair"></svg> <span id="ctxTxt"></span>
+          <button id="ctxRemove" aria-label="Remover contexto"><svg class="i-sm" data-lucide="x"></svg></button>
+        </div>
+        <div class="messages" id="messages"></div>
+        <div class="composer">
+          <input class="input" id="composerInput" placeholder="Pergunte ao mentor sobre C#…" />
+          <button class="btn btn-info" id="send"><svg class="i-sm" data-lucide="send"></svg></button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div id="toast-root"></div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+  <script src="mock-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function () {
+      function whenReady(fn){ if(window.CQUI) fn(); else document.addEventListener("cqui:ready", fn); }
+
+      whenReady(function () {
+        const ui = window.CQUI, d = window.CQ;
+        document.getElementById("ctxTxt").textContent = `Contexto: ${d.mentor.contexto.topico} · nível ${d.mentor.contexto.nivel}`;
+        document.getElementById("ctxRemove").addEventListener("click", () => document.getElementById("ctxChip").remove());
+
+        const box = document.getElementById("messages");
+        d.mentor.mensagens.forEach(addMsg);
+        scrollDown();
+
+        document.getElementById("send").addEventListener("click", sendMsg);
+        document.getElementById("composerInput").addEventListener("keydown", e => { if (e.key === "Enter") sendMsg(); });
+
+        function sendMsg() {
+          const inp = document.getElementById("composerInput");
+          const txt = inp.value.trim(); if (!txt) return;
+          addMsg({ de: "user", texto: txt }); inp.value = ""; scrollDown();
+          setTimeout(() => {
+            addMsg({ de: "ia", texto: "Boa pergunta! No protótipo o mentor é mockado, mas na versão real a IA responde com o contexto do seu tópico e nível injetado automaticamente." });
+            scrollDown();
+          }, 500);
+        }
+
+        function addMsg(m) {
+          const ia = m.de === "ia";
+          const el = document.createElement("div");
+          el.className = "msg " + (ia ? "ia" : "user");
+          el.innerHTML = `
+            ${ia ? '<div class="sage"><svg class="i" data-lucide="graduation-cap"></svg></div>' : ""}
+            <div class="bubble">
+              ${ia ? '<div class="who">Mentor</div>' : ""}
+              <div>${escapeHtml(m.texto)}</div>
+              ${m.codigo ? `<pre><code class="language-csharp">${escapeHtml(m.codigo)}</code></pre>` : ""}
+              ${ia ? '<button class="save-btn"><svg class="i-sm" data-lucide="bookmark"></svg> salvar pra revisão</button>' : ""}
+            </div>`;
+          box.appendChild(el);
+          lucide.createIcons({ nameAttr: "data-lucide", root: el });
+          el.querySelectorAll("pre code").forEach(c => window.hljs && hljs.highlightElement(c));
+          const sb = el.querySelector(".save-btn");
+          if (sb) sb.addEventListener("click", () => { ui.toast("Salvo pra revisão", "gold"); sb.innerHTML = '<svg class="i-sm" data-lucide="check"></svg> salvo'; lucide.createIcons({ nameAttr: "data-lucide", root: sb }); });
+        }
+
+        function scrollDown() { box.scrollTop = box.scrollHeight; }
+        lucide.createIcons({ nameAttr: "data-lucide" });
+      });
+
+      function escapeHtml(s){ return s.replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c])); }
+    })();
+  </script>
+</body>
+</html>

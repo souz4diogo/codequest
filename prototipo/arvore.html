@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeQuest — Árvore de habilidades</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="codequest.css" />
+  <style>
+    .tree { position: relative; max-width: 460px; margin: 0 auto; padding: 8px 0; }
+    .tree::before { content: ""; position: absolute; left: 50%; top: 30px; bottom: 30px; width: 3px; transform: translateX(-50%);
+      background: linear-gradient(var(--gold), var(--xp) 40%, var(--border) 42%); border-radius: 3px; }
+    .node { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0; z-index: 1; }
+    .node .disc { position: relative; width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center;
+      background: var(--bg-surface); border: 2px solid var(--border); cursor: pointer; transition: transform 150ms ease, box-shadow 150ms ease; }
+    .node .disc:hover { transform: scale(1.06); }
+    .node .name { font-weight: 600; font-size: 14px; text-align: center; max-width: 200px; }
+    .node .req { font-size: 12px; color: var(--text-muted); }
+    .node.concluido .disc { border-color: var(--gold); box-shadow: var(--glow-gold); color: var(--gold); }
+    .node.atual .disc { border-color: var(--xp); color: var(--xp); animation: nodepulse 1.8s ease-in-out infinite; }
+    @keyframes nodepulse { 50% { box-shadow: 0 0 0 8px #7c5cff22; } }
+    .node.liberado .disc { border-color: var(--info); color: var(--info); }
+    .node.bloqueado .disc { opacity: .5; color: var(--text-muted); cursor: not-allowed; }
+    .node.bloqueado .name { color: var(--text-muted); }
+    .node .disc .lock { position: absolute; bottom: -4px; right: -4px; background: var(--bg-elevated); border-radius: 50%; padding: 3px; border: 1px solid var(--border); }
+
+    .side { position: fixed; top: var(--topbar-h); right: 0; width: 360px; max-width: 90vw; height: calc(100vh - var(--topbar-h));
+      background: var(--bg-elevated); border-left: 1px solid var(--border); box-shadow: -8px 0 24px #00000055;
+      padding: 24px; overflow-y: auto; transform: translateX(100%); transition: transform 250ms ease-out; z-index: 40; }
+    .side.open { transform: none; }
+    .lvl-bar { height: 7px; border-radius: 999px; background: var(--border); overflow: hidden; }
+    .lvl-bar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--xp), #a58bff); }
+    @media (max-width: 768px){ .side{ top:0; height:100vh; width:100%; } }
+  </style>
+</head>
+<body data-page="arvore" data-title="Árvore de habilidades">
+  <div class="app-shell" id="shell">
+    <main class="main">
+      <div class="content">
+        <div class="card" style="max-width:520px;margin:0 auto 8px">
+          <div class="section-title" style="margin:0 0 8px"><svg class="i-sm" data-lucide="radar"></svg> Radar dos módulos</div>
+          <canvas id="radar" height="200"></canvas>
+        </div>
+        <p class="page-intro" style="text-align:center">Clique num módulo liberado para ver tópicos, exercícios e o teste.</p>
+        <div class="tree" id="tree"></div>
+      </div>
+    </main>
+  </div>
+
+  <aside class="side" id="side"></aside>
+  <div id="toast-root"></div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="mock-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function () {
+      function whenReady(fn){ if(window.CQUI) fn(); else document.addEventListener("cqui:ready", fn); }
+      const REQ = { atual: "", liberado: "", concluido: "" };
+
+      whenReady(function () {
+        const ui = window.CQUI, d = window.CQ;
+
+        document.getElementById("tree").innerHTML = d.modulos.map(m => {
+          const locked = m.estado === "bloqueado";
+          return `<div class="node ${m.estado}" data-id="${m.id}">
+            <div class="disc" ${locked ? 'aria-disabled="true"' : ""} tabindex="${locked ? -1 : 0}">
+              <svg class="i-lg" data-lucide="${m.icone}"></svg>
+              ${m.estado === "concluido" ? '<span class="lock"><svg class="i-sm" data-lucide="check" style="color:var(--gold)"></svg></span>' : ""}
+              ${locked ? '<span class="lock"><svg class="i-sm" data-lucide="lock"></svg></span>' : ""}
+            </div>
+            <div class="name">${m.nome}</div>
+            ${locked ? `<div class="req" title="Requer: ${m.requer}">Requer: ${m.requer}</div>`
+                     : `<div class="req">${m.progresso}%</div>`}
+          </div>`;
+        }).join("");
+
+        document.querySelectorAll(".node").forEach(n => {
+          const m = d.modulos.find(x => x.id == n.dataset.id);
+          if (m.estado === "bloqueado") return;
+          n.querySelector(".disc").addEventListener("click", () => openSide(m));
+        });
+
+        const side = document.getElementById("side");
+        function openSide(m) {
+          const boss = (m.estado === "atual" && d.boss.elegivel);
+          side.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+              <div><div class="muted">Módulo</div><div class="display" style="font-size:20px;color:var(--gold)">${m.nome}</div></div>
+              <button class="btn btn-ghost" id="sideClose" aria-label="Fechar"><svg class="i-sm" data-lucide="x"></svg></button>
+            </div>
+            ${(m.topicos || []).map(t => `
+              <div class="card" style="background:var(--bg-surface);margin-bottom:10px;padding:14px">
+                <div style="display:flex;justify-content:space-between"><b>${t.nome}</b><span class="muted">${t.nivel}/100</span></div>
+                <div class="lvl-bar" style="margin:8px 0 12px"><span style="width:${t.nivel}%"></span></div>
+                <div style="display:flex;gap:8px">
+                  <a href="exercicio.html" class="btn btn-ghost" style="flex:1"><svg class="i-sm" data-lucide="code-xml"></svg> Exercício</a>
+                  <a href="exercicio.html" class="btn btn-ghost" style="flex:1"><svg class="i-sm" data-lucide="clipboard-check"></svg> Teste</a>
+                </div>
+              </div>`).join("") || `<p class="muted">Tópicos deste módulo aparecem aqui.</p>`}
+            ${boss ? `<a href="missoes.html" class="btn btn-primary btn-block" style="margin-top:8px"><svg class="i-sm" data-lucide="skull"></svg> Boss: ${d.boss.nome}</a>` : ""}`;
+          lucide.createIcons({ nameAttr: "data-lucide", root: side });
+          side.classList.add("open");
+          side.querySelector("#sideClose").addEventListener("click", () => side.classList.remove("open"));
+        }
+
+        // radar
+        new Chart(document.getElementById("radar"), {
+          type: "radar",
+          data: { labels: ["Fund.", "POO", "Coleções", "LINQ/Async", "Erros", "EF Core"],
+            datasets: [{ data: [100, 100, 100, 38, 15, 0], borderColor: "#f0b429", backgroundColor: "#f0b42922", pointBackgroundColor: "#7c5cff", borderWidth: 2 }] },
+          options: { plugins: { legend: { display: false } },
+            scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: "#2d3748" }, angleLines: { color: "#2d3748" }, pointLabels: { color: "#9aa7b3", font: { size: 11 } } } } },
+        });
+
+        lucide.createIcons({ nameAttr: "data-lucide" });
+      });
+    })();
+  </script>
+</body>
+</html>

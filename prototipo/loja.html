@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeQuest — Loja</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="codequest.css" />
+  <style>
+    .shop-item { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .shop-item .icon { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 16px;
+      background: radial-gradient(circle at 50% 30%, #f0b42922, var(--bg-elevated)); border: 1px solid var(--border); margin-bottom: 6px; }
+    .shop-item .price { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
+    .receipt { display: none; }
+  </style>
+</head>
+<body data-page="loja" data-title="Loja">
+  <div class="app-shell" id="shell">
+    <main class="main">
+      <div class="content">
+        <p class="page-intro">Gaste seu gold sem culpa — você suou pra ganhar cada moeda.</p>
+        <div class="grid grid-3" id="itens"></div>
+
+        <div class="section-title"><svg class="i" data-lucide="backpack"></svg> Inventário</div>
+        <div class="grid grid-3" id="inventario"></div>
+      </div>
+    </main>
+  </div>
+  <div id="toast-root"></div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="mock-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function () {
+      function whenReady(fn){ if(window.CQUI) fn(); else document.addEventListener("cqui:ready", fn); }
+
+      whenReady(function () {
+        const ui = window.CQUI, d = window.CQ;
+        let gold = d.player.gold;
+
+        function render() {
+          document.getElementById("itens").innerHTML = d.itensLoja.map(it => {
+            const podeComprar = gold >= it.preco;
+            return `<div class="card hoverable shop-item">
+              <div class="icon"><svg class="i-lg" data-lucide="${it.icone}" style="color:var(--gold)"></svg></div>
+              <b>${it.nome}</b>
+              <div class="muted" style="min-height:34px">${it.descricao}</div>
+              <div class="price"><svg class="i-sm" data-lucide="coins"></svg> ${it.preco}</div>
+              <button class="btn ${podeComprar ? "btn-primary" : "btn-ghost"} btn-block" data-buy="${it.id}" ${podeComprar ? "" : "disabled"}>
+                ${podeComprar ? '<svg class="i-sm" data-lucide="shopping-cart"></svg> Comprar' : `faltam ${it.preco - gold} <svg class="i-sm" data-lucide="coins"></svg>`}
+              </button>
+            </div>`;
+          }).join("");
+
+          const inv = d.itensLoja.filter(it => it.inventario);
+          document.getElementById("inventario").innerHTML = inv.length ? inv.map(it => `
+            <div class="card shop-item">
+              <div class="icon"><svg class="i-lg" data-lucide="${it.icone}" style="color:var(--xp)"></svg></div>
+              <b>${it.nome}</b>
+              <span class="badge badge-tipo">x${it.inventario} · não usado</span>
+            </div>`).join("") : `<div class="card muted">Nada no inventário ainda.</div>`;
+
+          document.querySelectorAll("[data-buy]").forEach(b => b.addEventListener("click", () => comprar(b)));
+          lucide.createIcons({ nameAttr: "data-lucide" });
+        }
+
+        function comprar(btn) {
+          const it = d.itensLoja.find(x => x.id == btn.dataset.buy);
+          if (gold < it.preco) return;
+          gold -= it.preco;
+          it.inventario = (it.inventario || 0) + 1;
+
+          // animação: moedas saindo do contador de gold da topbar
+          coinsFrom(btn);
+          const goldEl = document.getElementById("statGold");
+          ui.animateCounter(goldEl, gold);
+          ui.toast("Aproveite sem culpa 🎮", "gold");
+          render();
+        }
+
+        function coinsFrom(sourceEl) {
+          if (ui.reduceMotion()) return;
+          const target = document.getElementById("statGold");
+          const t = target.getBoundingClientRect(), s = sourceEl.getBoundingClientRect();
+          for (let i = 0; i < 6; i++) {
+            const c = document.createElement("div");
+            c.className = "confetti"; c.style.background = "var(--gold)"; c.style.borderRadius = "50%";
+            c.style.left = t.left + "px"; c.style.top = t.top + "px";
+            document.body.appendChild(c);
+            c.animate([
+              { transform: "translate(0,0)", opacity: 1 },
+              { transform: `translate(${s.left - t.left + (Math.random()*40-20)}px, ${s.top - t.top + 40}px)`, opacity: 0 }
+            ], { duration: 600 + i * 60, easing: "ease-in" });
+            setTimeout(() => c.remove(), 800);
+          }
+        }
+
+        render();
+        lucide.createIcons({ nameAttr: "data-lucide" });
+      });
+    })();
+  </script>
+</body>
+</html>

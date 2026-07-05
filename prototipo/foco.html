@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeQuest — Foco</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="codequest.css" />
+  <style>
+    .foco-wrap { max-width: 560px; margin: 0 auto; text-align: center; }
+    .timer { position: relative; width: 300px; height: 300px; margin: 10px auto 24px; }
+    .timer svg { transform: rotate(-90deg); }
+    .timer .digits { position: absolute; inset: 0; display: grid; place-content: center; }
+    .timer .digits .time { font-family: var(--font-code); font-weight: 700; font-size: 68px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .timer .digits .sub { color: var(--text-secondary); margin-top: 6px; }
+    body.running { background: #06080d; }
+    body.running .topbar, body.running .setup { opacity: .15; pointer-events: none; }
+    .group { margin: 20px 0; text-align: left; }
+    .group > .lbl { font-size: 13px; color: var(--text-secondary); font-weight: 600; margin-bottom: 8px; }
+    .chips { justify-content: center; }
+  </style>
+</head>
+<body data-page="foco" data-title="Foco" class="immersive">
+  <div class="app-shell" id="shell">
+    <main class="main">
+      <div class="foco-wrap">
+        <div class="timer">
+          <svg width="300" height="300" viewBox="0 0 300 300">
+            <circle cx="150" cy="150" r="140" fill="none" stroke="var(--border)" stroke-width="12" />
+            <circle id="ring" cx="150" cy="150" r="140" fill="none" stroke="var(--focus-timer)" stroke-width="12"
+              stroke-linecap="round" stroke-dasharray="879.6" stroke-dashoffset="0" />
+          </svg>
+          <div class="digits">
+            <div class="time" id="time">25:00</div>
+            <div class="sub" id="sub">pronto pra focar?</div>
+          </div>
+        </div>
+
+        <div class="setup" id="setup">
+          <div class="group">
+            <div class="lbl">No que você vai trabalhar?</div>
+            <div class="chips" id="alvos">
+              <button class="chip selected" data-alvo="Projeto CodeQuest">Projeto CodeQuest</button>
+              <button class="chip" data-alvo="LINQ">Tópico: LINQ</button>
+              <button class="chip" data-alvo="Async">Tópico: Async</button>
+            </div>
+          </div>
+          <div class="group">
+            <div class="lbl">Duração</div>
+            <div class="chips" id="duracoes">
+              <button class="chip selected" data-min="25">25 min</button>
+              <button class="chip" data-min="50">50 min</button>
+              <button class="chip" data-min="0.17">Demo 10s</button>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-lg" id="iniciar" style="background:var(--focus-timer);box-shadow:0 0 12px #ff8c4255">
+            <svg class="i" data-lucide="play"></svg> Iniciar foco
+          </button>
+        </div>
+
+        <div id="running" style="display:none">
+          <div class="secondary" id="trabalhando" style="margin-bottom:16px"></div>
+          <button class="btn btn-ghost" id="desistir" style="opacity:.6"><svg class="i-sm" data-lucide="x"></svg> Desistir</button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div id="toast-root"></div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="mock-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function () {
+      function whenReady(fn){ if(window.CQUI) fn(); else document.addEventListener("cqui:ready", fn); }
+      const C = 2 * Math.PI * 140; // 879.6
+      let alvo = "Projeto CodeQuest", minutos = 25, timer = null;
+
+      whenReady(function () {
+        const ui = window.CQUI;
+        const ring = document.getElementById("ring");
+        const timeEl = document.getElementById("time");
+        const subEl = document.getElementById("sub");
+
+        document.querySelectorAll("#alvos .chip").forEach(c => c.addEventListener("click", () => {
+          document.querySelectorAll("#alvos .chip").forEach(x => x.classList.remove("selected"));
+          c.classList.add("selected"); alvo = c.dataset.alvo;
+        }));
+        document.querySelectorAll("#duracoes .chip").forEach(c => c.addEventListener("click", () => {
+          document.querySelectorAll("#duracoes .chip").forEach(x => x.classList.remove("selected"));
+          c.classList.add("selected"); minutos = parseFloat(c.dataset.min);
+          if (!document.body.classList.contains("running")) render(minutos * 60);
+        }));
+
+        function fmt(s) { const m = Math.floor(s / 60), r = Math.floor(s % 60); return `${String(m).padStart(2,"0")}:${String(r).padStart(2,"0")}`; }
+        function render(s) { timeEl.textContent = fmt(s); }
+
+        document.getElementById("iniciar").addEventListener("click", start);
+        document.getElementById("desistir").addEventListener("click", () => stop(false));
+
+        function start() {
+          const total = Math.max(1, Math.round(minutos * 60));
+          let restante = total;
+          document.body.classList.add("running");
+          document.getElementById("setup").style.display = "none";
+          document.getElementById("running").style.display = "";
+          document.getElementById("trabalhando").innerHTML = `Focando em <b>${alvo}</b>`;
+          subEl.textContent = "mantenha o foco";
+          if (ui.reduceMotion()) ring.style.transition = "none";
+          render(restante);
+          timer = setInterval(() => {
+            restante--;
+            render(restante);
+            ring.style.strokeDashoffset = C * (1 - restante / total);
+            if (restante <= 0) { clearInterval(timer); complete(); }
+          }, 1000);
+        }
+
+        function stop(completo) {
+          clearInterval(timer);
+          document.body.classList.remove("running");
+          document.getElementById("setup").style.display = "";
+          document.getElementById("running").style.display = "none";
+          ring.style.strokeDashoffset = 0;
+          render(minutos * 60);
+          subEl.textContent = completo ? "sessão concluída!" : "pronto pra focar?";
+        }
+
+        function complete() {
+          const xp = 25, gold = Math.ceil(xp / 3);
+          document.body.classList.remove("running");
+          subEl.textContent = "sessão concluída!";
+          timeEl.textContent = "00:00";
+          const r = document.querySelector(".timer").getBoundingClientRect();
+          ui.confettiBurst(r.left + r.width / 2, r.top + r.height / 2);
+          ui.grantReward(xp, gold, document.querySelector(".timer"));
+          document.getElementById("running").innerHTML = `
+            <div class="card" style="border-color:var(--focus-timer)">
+              <b style="color:var(--focus-timer);font-size:18px">Foco completo! +${xp} XP</b>
+              <p class="muted" style="margin:8px 0 14px">Boa. Emendar mais um ciclo?</p>
+              <div style="display:flex;gap:8px;justify-content:center">
+                <button class="btn btn-primary" id="denovo" style="background:var(--focus-timer)"><svg class="i-sm" data-lucide="repeat"></svg> Mais um</button>
+                <a href="index.html" class="btn btn-ghost">Voltar ao dashboard</a>
+              </div>
+            </div>`;
+          lucide.createIcons({ nameAttr: "data-lucide", root: document.getElementById("running") });
+          document.getElementById("denovo").addEventListener("click", () => location.reload());
+        }
+
+        render(minutos * 60);
+        lucide.createIcons({ nameAttr: "data-lucide" });
+      });
+    })();
+  </script>
+</body>
+</html>
