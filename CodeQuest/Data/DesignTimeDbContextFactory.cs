@@ -13,6 +13,9 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<App
 {
     public AppDbContext CreateDbContext(string[] args)
     {
+        // Carrega o .env (raiz do repo) para que `dotnet ef` leia a mesma connection string da app.
+        DotNetEnv.Env.TraversePath().Load();
+
         var config = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false)
@@ -21,7 +24,8 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<App
             .Build();
 
         var conexao = config.GetConnectionString("CodeQuest")
-            ?? "Host=localhost;Port=5432;Database=codequest;Username=postgres;Password=postgres";
+            ?? throw new InvalidOperationException(
+                "Connection string 'CodeQuest' não configurada. Defina ConnectionStrings__CodeQuest no .env.");
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(conexao)

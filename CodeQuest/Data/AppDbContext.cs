@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Player> Players => Set<Player>();
     public DbSet<Modulo> Modulos => Set<Modulo>();
     public DbSet<ModuloPrereq> ModuloPrereqs => Set<ModuloPrereq>();
@@ -49,9 +50,16 @@ public class AppDbContext : DbContext
             .HasOne(r => r.Tentativa).WithOne(t => t.Revisao)
             .HasForeignKey<Revisao>(r => r.TentativaId);
 
-        // ---- Player: linha única, gold nunca negativo (RN) ----
+        // ---- Player: gold nunca negativo (RN) ----
         // Aspas no nome da coluna: o Postgres preserva a caixa só com identificador aspado.
         model.Entity<Player>().ToTable(t => t.HasCheckConstraint("CK_Player_Gold", "\"Gold\" >= 0"));
+
+        // ---- Usuario ↔ Player (1:1) e login único ----
+        model.Entity<Usuario>().HasIndex(u => u.Login).IsUnique();
+        model.Entity<Player>()
+            .HasOne(p => p.Usuario).WithOne(u => u.Player)
+            .HasForeignKey<Player>(p => p.UsuarioId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // ---- Regras de valor ----
         model.Entity<ItemLoja>().Property(i => i.Ativo).HasDefaultValue(true);

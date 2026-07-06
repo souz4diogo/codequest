@@ -1,15 +1,18 @@
 namespace CodeQuest.Models;
 
 /// <summary>
-/// Perfil único do jogador (linha única, Id = 1). Regras RN01–RN05.
+/// Perfil de jogo de um usuário (relação 1:1 com <see cref="Usuario"/>). Regras RN01–RN05.
 /// A entidade é apenas um contêiner de estado; toda a lógica de XP/nível/gold/streak
 /// vive nos serviços (ver GameService), mantendo a classe fiel ao SRP.
 /// </summary>
 public class Player
 {
-    public const int IdUnico = 1;
+    public int Id { get; set; }
 
-    public int Id { get; set; } = IdUnico;
+    /// <summary>Dono deste perfil (1:1). Todo Player pertence a exatamente um usuário.</summary>
+    public int UsuarioId { get; set; }
+    public Usuario? Usuario { get; set; }
+
     public string Nome { get; set; } = string.Empty;
 
     /// <summary>XP acumulado. Nunca decrementa (RN01).</summary>

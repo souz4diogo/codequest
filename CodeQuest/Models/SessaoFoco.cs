@@ -8,6 +8,10 @@ public class SessaoFoco
 {
     public int Id { get; set; }
 
+    /// <summary>Player dono da sessão de foco (multi-usuário).</summary>
+    public int PlayerId { get; set; }
+    public Player? Player { get; set; }
+
     public int? ProjetoId { get; set; }
     public Projeto? Projeto { get; set; }
 

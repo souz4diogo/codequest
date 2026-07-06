@@ -5,6 +5,10 @@ public class CompraLoja
 {
     public int Id { get; set; }
 
+    /// <summary>Player que fez a compra (multi-usuário).</summary>
+    public int PlayerId { get; set; }
+    public Player? Player { get; set; }
+
     public int ItemLojaId { get; set; }
     public ItemLoja ItemLoja { get; set; } = null!;
 

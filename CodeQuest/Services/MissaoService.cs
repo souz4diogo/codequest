@@ -1,3 +1,4 @@
+using CodeQuest.Auth;
 using CodeQuest.Common;
 using CodeQuest.Data;
 using CodeQuest.Models;
@@ -40,19 +41,22 @@ public sealed class MissaoService : IMissaoService
     private readonly ICalculadoraRecompensa _recompensa;
     private readonly IGameService _game;
     private readonly IRelogio _relogio;
+    private readonly IUsuarioAtual _usuario;
 
     public MissaoService(
         AppDbContext db,
         IPoliticaRecompensaMissao politica,
         ICalculadoraRecompensa recompensa,
         IGameService game,
-        IRelogio relogio)
+        IRelogio relogio,
+        IUsuarioAtual usuario)
     {
         _db = db;
         _politica = politica;
         _recompensa = recompensa;
         _game = game;
         _relogio = relogio;
+        _usuario = usuario;
     }
 
     public async Task<Resultado<Missao>> CriarManualAsync(NovaMissaoManual dados, CancellationToken ct = default)
@@ -68,8 +72,10 @@ public sealed class MissaoService : IMissaoService
                 $"XP {dados.Xp} fora da faixa de esforço {dados.Esforco} ({faixa.Minimo}–{faixa.Maximo}).");
         }
 
+        var playerId = await _usuario.ObterPlayerIdAsync(ct);
         var missao = new Missao
         {
+            PlayerId = playerId,
             Tipo = TipoMissao.Manual,
             Titulo = dados.Titulo.Trim(),
             Descricao = dados.Descricao?.Trim() ?? string.Empty,
@@ -87,7 +93,9 @@ public sealed class MissaoService : IMissaoService
 
     public async Task<Resultado<ResultadoXp>> ConcluirAsync(int missaoId, CancellationToken ct = default)
     {
-        var missao = await _db.Missoes.FirstOrDefaultAsync(m => m.Id == missaoId, ct);
+        // Só o dono conclui a própria missão (isolamento entre usuários).
+        var playerId = await _usuario.ObterPlayerIdAsync(ct);
+        var missao = await _db.Missoes.FirstOrDefaultAsync(m => m.Id == missaoId && m.PlayerId == playerId, ct);
         if (missao is null)
             return Resultado.Falha<ResultadoXp>("Missão não encontrada.");
 
@@ -107,8 +115,11 @@ public sealed class MissaoService : IMissaoService
     }
 
     public async Task<IReadOnlyList<Missao>> ListarDoDiaAsync(CancellationToken ct = default)
-        => await _db.Missoes
-            .Where(m => m.DataAlvo == _relogio.Hoje)
+    {
+        var playerId = await _usuario.ObterPlayerIdAsync(ct);
+        return await _db.Missoes
+            .Where(m => m.PlayerId == playerId && m.DataAlvo == _relogio.Hoje)
             .OrderBy(m => m.Status)
             .ToListAsync(ct);
+    }
 }

@@ -89,3 +89,71 @@ h1:focus {
 .erro { color: #cf222e; }
 .pocao { color: #8250df; }
 .progresso { color: #444; }
+
+/* ---- Barra superior / autenticação ---- */
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .6rem 1.2rem;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fafafa;
+}
+
+.topbar .marca {
+    font-weight: 700;
+    text-decoration: none;
+    color: #1f2328;
+}
+
+.topbar nav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.topbar .usuario { color: #555; font-size: .9rem; }
+
+.topbar form { margin: 0; }
+
+.topbar .sair {
+    padding: .35rem .8rem;
+    cursor: pointer;
+    border: 1px solid #d0d0d0;
+    border-radius: .4rem;
+    background: #fff;
+}
+
+main { padding: 1.2rem; }
+
+.auth {
+    max-width: 22rem;
+    margin: 3rem auto;
+    padding: 1.5rem;
+    border: 1px solid #e0e0e0;
+    border-radius: .6rem;
+}
+
+.auth label {
+    display: block;
+    margin: .8rem 0;
+    font-size: .9rem;
+    color: #444;
+}
+
+.auth input {
+    display: block;
+    width: 100%;
+    margin-top: .3rem;
+    padding: .5rem;
+    border: 1px solid #cfcfcf;
+    border-radius: .4rem;
+    box-sizing: border-box;
+}
+
+.auth button {
+    margin-top: .5rem;
+    padding: .5rem 1rem;
+    cursor: pointer;
+}

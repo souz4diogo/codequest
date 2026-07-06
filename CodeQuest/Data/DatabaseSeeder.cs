@@ -4,7 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CodeQuest.Data;
 
-/// <summary>Popula o banco com os dados iniciais (Player, módulos, tópicos, loja). Item 0.3 do backlog.</summary>
+/// <summary>Popula o banco com os dados globais iniciais (módulos, tópicos, loja). Item 0.3 do backlog.
+/// O Player não é semeado: cada um nasce no registro do seu usuário.</summary>
 public interface ISeeder
 {
     Task ExecutarAsync(CancellationToken ct = default);
@@ -24,23 +25,10 @@ public sealed class DatabaseSeeder : ISeeder
     {
         await _db.Database.MigrateAsync(ct);
 
-        await SemearPlayerAsync(ct);
         await SemearArvoreAsync(ct);
         await SemearLojaAsync(ct);
 
         await _db.SaveChangesAsync(ct);
-    }
-
-    private async Task SemearPlayerAsync(CancellationToken ct)
-    {
-        if (await _db.Players.AnyAsync(ct)) return;
-
-        _db.Players.Add(new Player
-        {
-            Id = Player.IdUnico,
-            Nome = "Jogador",
-            Nivel = 1,
-        });
     }
 
     private async Task SemearArvoreAsync(CancellationToken ct)

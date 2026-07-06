@@ -1,0 +1,11 @@
+@inject NavigationManager Nav
+
+@code {
+    // Redireciona o anônimo para o login, preservando a URL de origem (returnUrl).
+    protected override void OnInitialized()
+    {
+        var destino = new Uri(Nav.Uri).PathAndQuery;
+        var retorno = Uri.EscapeDataString(destino);
+        Nav.NavigateTo($"/login?returnUrl={retorno}", forceLoad: true);
+    }
+}

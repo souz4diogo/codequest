@@ -1,3 +1,4 @@
+using CodeQuest.Auth;
 using CodeQuest.Common;
 using CodeQuest.Data;
 using CodeQuest.Models;
@@ -21,11 +22,13 @@ public sealed class LojaService : ILojaService
 {
     private readonly AppDbContext _db;
     private readonly IEnumerable<IEfeitoItemLoja> _efeitos;
+    private readonly IUsuarioAtual _usuario;
 
-    public LojaService(AppDbContext db, IEnumerable<IEfeitoItemLoja> efeitos)
+    public LojaService(AppDbContext db, IEnumerable<IEfeitoItemLoja> efeitos, IUsuarioAtual usuario)
     {
         _db = db;
         _efeitos = efeitos;
+        _usuario = usuario;
     }
 
     public async Task<IReadOnlyList<ItemLoja>> ListarAtivosAsync(CancellationToken ct = default)
@@ -37,8 +40,9 @@ public sealed class LojaService : ILojaService
         if (item is null || !item.Ativo)
             return Resultado.Falha<CompraLoja>("Item indisponível.");
 
-        var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == Player.IdUnico, ct)
-                     ?? throw new InvalidOperationException("Player não encontrado — rode o seed do banco.");
+        var playerId = await _usuario.ObterPlayerIdAsync(ct);
+        var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct)
+                     ?? throw new InvalidOperationException("Player do usuário logado não encontrado.");
 
         if (player.Gold < item.CustoGold)
             return Resultado.Falha<CompraLoja>($"Gold insuficiente: precisa de {item.CustoGold}, tem {player.Gold}.");
@@ -51,6 +55,7 @@ public sealed class LojaService : ILojaService
 
         var compra = new CompraLoja
         {
+            PlayerId = player.Id,
             ItemLojaId = item.Id,
             CustoGoldPago = item.CustoGold,
         };

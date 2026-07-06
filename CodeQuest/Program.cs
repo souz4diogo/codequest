@@ -1,6 +1,11 @@
 using CodeQuest;
 using CodeQuest.Components;
 using CodeQuest.Data;
+using Microsoft.AspNetCore.Authentication;
+
+// Carrega o .env (na raiz do repo) para variáveis de ambiente antes de montar a configuração.
+// Em produção/Docker as variáveis já vêm do ambiente, então a ausência do arquivo é ignorada.
+DotNetEnv.Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,10 +35,19 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+// Logout: encerra a sessão e volta para o login. POST para evitar logout por link/GET.
+app.MapPost("/logout", async (HttpContext http) =>
+{
+    await http.SignOutAsync(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
+    return Results.Redirect("/login");
+}).DisableAntiforgery();
 
 app.Run();

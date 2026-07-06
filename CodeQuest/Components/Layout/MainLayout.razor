@@ -1,6 +1,23 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-@Body
+<AuthorizeView>
+    <Authorized>
+        <header class="topbar">
+            <a href="/" class="marca">CodeQuest</a>
+            <nav>
+                <a href="/sobre">Sobre</a>
+                <span class="usuario">@context.User.Identity?.Name</span>
+                <form method="post" action="/logout">
+                    <button type="submit" class="sair">Sair</button>
+                </form>
+            </nav>
+        </header>
+    </Authorized>
+</AuthorizeView>
+
+<main>
+    @Body
+</main>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

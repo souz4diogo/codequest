@@ -1,3 +1,4 @@
+using CodeQuest.Auth;
 using CodeQuest.Common;
 using CodeQuest.Data;
 using CodeQuest.Models;
@@ -47,24 +48,30 @@ public sealed class GameService : IGameService
     private readonly ICalculadoraRecompensa _recompensa;
     private readonly IPoliticaStreak _streak;
     private readonly IRelogio _relogio;
+    private readonly IUsuarioAtual _usuario;
 
     public GameService(
         AppDbContext db,
         IReguladorNivel nivel,
         ICalculadoraRecompensa recompensa,
         IPoliticaStreak streak,
-        IRelogio relogio)
+        IRelogio relogio,
+        IUsuarioAtual usuario)
     {
         _db = db;
         _nivel = nivel;
         _recompensa = recompensa;
         _streak = streak;
         _relogio = relogio;
+        _usuario = usuario;
     }
 
     public async Task<Player> ObterPlayerAsync(CancellationToken ct = default)
-        => await _db.Players.FirstOrDefaultAsync(p => p.Id == Player.IdUnico, ct)
-           ?? throw new InvalidOperationException("Player não encontrado — rode o seed do banco.");
+    {
+        var playerId = await _usuario.ObterPlayerIdAsync(ct);
+        return await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct)
+               ?? throw new InvalidOperationException("Player do usuário logado não encontrado.");
+    }
 
     public async Task<ResultadoXp> AdicionarXpAsync(int xpBase, CancellationToken ct = default)
     {

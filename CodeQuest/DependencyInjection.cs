@@ -1,8 +1,12 @@
+using CodeQuest.Auth;
 using CodeQuest.Common;
 using CodeQuest.Data;
+using CodeQuest.Models;
 using CodeQuest.Services;
 using CodeQuest.Services.Loja;
 using CodeQuest.Services.Regras;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace CodeQuest;
@@ -37,8 +41,39 @@ public static class DependencyInjection
         services.AddScoped<ILojaService, LojaService>();
         services.AddScoped<IMissaoService, MissaoService>();
 
+        // Autenticação (cookie) e serviços de identidade
+        services.AddAutenticacaoCodeQuest();
+        services.AddSingleton<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
+        services.AddScoped<IServicoAutenticacao, ServicoAutenticacao>();
+        services.AddScoped<IUsuarioAtual, UsuarioAtual>();
+
         // Seed
         services.AddScoped<ISeeder, DatabaseSeeder>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Autenticação por cookie — o padrão recomendado para Blazor Server (o circuito é
+    /// stateful, então o cookie de sessão encaixa melhor que um token stateless).
+    /// </summary>
+    private static IServiceCollection AddAutenticacaoCodeQuest(this IServiceCollection services)
+    {
+        services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(opt =>
+            {
+                opt.Cookie.Name = "CodeQuest.Auth";
+                opt.LoginPath = "/login";
+                opt.LogoutPath = "/logout";
+                opt.AccessDeniedPath = "/login";
+                opt.ExpireTimeSpan = TimeSpan.FromDays(7);
+                opt.SlidingExpiration = true;
+                opt.Cookie.HttpOnly = true;
+                opt.Cookie.SameSite = SameSiteMode.Lax;
+            });
+
+        services.AddAuthorization();
+        services.AddCascadingAuthenticationState();
 
         return services;
     }

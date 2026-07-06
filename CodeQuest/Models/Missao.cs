@@ -5,6 +5,10 @@ public class Missao
 {
     public int Id { get; set; }
 
+    /// <summary>Player dono da missão (multi-usuário).</summary>
+    public int PlayerId { get; set; }
+    public Player? Player { get; set; }
+
     public TipoMissao Tipo { get; set; }
 
     /// <summary>Tópico foco (opcional).</summary>
