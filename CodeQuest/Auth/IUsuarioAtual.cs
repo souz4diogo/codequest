@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace CodeQuest.Auth;
@@ -18,14 +17,24 @@ public interface IUsuarioAtual
 }
 
 /// <summary>
-/// Implementação sobre o <see cref="AuthenticationStateProvider"/> do Blazor — funciona tanto
-/// no SSR estático (lê HttpContext.User) quanto no circuito interativo (estado do circuito).
+/// Resolve o usuário logado nos dois mundos que coexistem durante a migração para React:
+/// <list type="bullet">
+///   <item>Requisição HTTP (API com JWT, ou render estático do Blazor): lê <c>HttpContext.User</c>.</item>
+///   <item>Circuito interativo do Blazor Server (sem HttpContext): cai no <see cref="AuthenticationStateProvider"/>.</item>
+/// </list>
+/// Quando o Blazor for totalmente removido, o fallback e a dependência de <see cref="AuthenticationStateProvider"/>
+/// saem, restando apenas a leitura do <see cref="IHttpContextAccessor"/>.
 /// </summary>
 public sealed class UsuarioAtual : IUsuarioAtual
 {
+    private readonly IHttpContextAccessor _httpContext;
     private readonly AuthenticationStateProvider _authState;
 
-    public UsuarioAtual(AuthenticationStateProvider authState) => _authState = authState;
+    public UsuarioAtual(IHttpContextAccessor httpContext, AuthenticationStateProvider authState)
+    {
+        _httpContext = httpContext;
+        _authState = authState;
+    }
 
     public async Task<int> ObterPlayerIdAsync(CancellationToken ct = default)
         => await ObterPlayerIdOuNuloAsync(ct)
@@ -33,8 +42,13 @@ public sealed class UsuarioAtual : IUsuarioAtual
 
     public async Task<int?> ObterPlayerIdOuNuloAsync(CancellationToken ct = default)
     {
-        var estado = await _authState.GetAuthenticationStateAsync();
-        var claim = estado.User.FindFirst(ClaimsCodeQuest.PlayerId);
+        var usuario = _httpContext.HttpContext?.User;
+
+        // Sem HttpContext autenticado → estamos num circuito interativo do Blazor.
+        if (usuario?.Identity?.IsAuthenticated != true)
+            usuario = (await _authState.GetAuthenticationStateAsync()).User;
+
+        var claim = usuario.FindFirst(ClaimsCodeQuest.PlayerId);
         return claim is not null && int.TryParse(claim.Value, out var id) ? id : null;
     }
 }

@@ -13,16 +13,22 @@ public static class ClaimsCodeQuest
     /// <summary>Claim com o Id do Player associado ao usuário — evita ir ao banco a cada request.</summary>
     public const string PlayerId = "codequest:player_id";
 
-    /// <summary>Monta a identidade do usuário para o cookie de autenticação.</summary>
-    public static ClaimsPrincipal ConstruirPrincipal(Usuario usuario, int playerId)
-    {
-        var claims = new List<Claim>
+    /// <summary>
+    /// Claims que identificam o usuário — compartilhadas pelo cookie (Blazor) e pelo JWT (API React),
+    /// para que os dois formatos de autenticação carreguem exatamente a mesma informação.
+    /// </summary>
+    public static IReadOnlyList<Claim> ConstruirClaims(Usuario usuario, int playerId) =>
+        new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
             new(ClaimTypes.Name, usuario.Login),
             new(PlayerId, playerId.ToString()),
         };
-        var identidade = new ClaimsIdentity(claims, authenticationType: "CodeQuestCookie");
+
+    /// <summary>Monta a identidade do usuário para o cookie de autenticação.</summary>
+    public static ClaimsPrincipal ConstruirPrincipal(Usuario usuario, int playerId)
+    {
+        var identidade = new ClaimsIdentity(ConstruirClaims(usuario, playerId), authenticationType: "CodeQuestCookie");
         return new ClaimsPrincipal(identidade);
     }
 }

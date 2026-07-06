@@ -1,0 +1,41 @@
+### CodeQuest — API (fase 1). Rode a app com `dotnet run` e use o profile http (porta 5289).
+@host = http://localhost:5289
+
+### 1) Registrar um usuário (cria o Player e já devolve o JWT)
+# @name registrar
+POST {{host}}/api/auth/registrar
+Content-Type: application/json
+
+{
+  "login": "diogo",
+  "senha": "segredo123"
+}
+
+### 2) Login (devolve o JWT). Copia o campo "token" da resposta.
+# @name login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "login": "diogo",
+  "senha": "segredo123"
+}
+
+### Guarda o token do login acima para reusar nos endpoints protegidos.
+@token = {{login.response.body.token}}
+
+### 3) Player logado (protegido por JWT)
+GET {{host}}/api/player
+Authorization: Bearer {{token}}
+
+### 4) Creditar XP de teste (protegido por JWT)
+POST {{host}}/api/player/xp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "xpBase": 60
+}
+
+### 5) Sem token → deve retornar 401
+GET {{host}}/api/player

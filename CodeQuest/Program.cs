@@ -9,9 +9,20 @@ DotNetEnv.Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
+const string CorsFront = "front";
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// API REST consumida pela SPA React.
+builder.Services.AddControllers();
+
+// CORS liberado só para a origem do front (Vite). JWT vai no header, então não precisa de credenciais.
+builder.Services.AddCors(o => o.AddPolicy(CorsFront, p => p
+    .WithOrigins(builder.Configuration["Cors:OrigemFront"] ?? "http://localhost:5173")
+    .AllowAnyHeader()
+    .AllowAnyMethod()));
 
 // Serviços do CodeQuest (DbContext, regras, serviços de aplicação, seed).
 builder.Services.AddCodeQuest(builder.Configuration);
@@ -35,9 +46,13 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
+app.UseCors(CorsFront);
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
+
+// Endpoints REST da API (consumidos pelo React).
+app.MapControllers();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
