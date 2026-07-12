@@ -10,7 +10,7 @@ namespace CodeQuest.Services;
 /// <summary>Detalhamento do que aconteceu ao creditar XP — usado pela UI para feedback (level-up etc.).</summary>
 /// <param name="XpBase">XP antes do multiplicador de streak.</param>
 /// <param name="XpCreditado">XP efetivamente somado (após streak).</param>
-/// <param name="GoldGanho">Gold derivado do XP creditado.</param>
+/// <param name="GoldGanho">Gold derivado do XP base (RN02 — streak não afeta gold).</param>
 /// <param name="Multiplicador">Multiplicador de streak aplicado.</param>
 /// <param name="SubiuNivel">Se a atividade causou level-up.</param>
 /// <param name="NivelAtual">Nível após a atividade.</param>
@@ -92,8 +92,8 @@ public sealed class GameService : IGameService
         var xpCreditado = _recompensa.AplicarMultiplicador(xpBase, player.StreakDias);
         player.XpTotal += xpCreditado;
 
-        // 3) Gold derivado do XP creditado (RN02).
-        var gold = _recompensa.GoldPorXp(xpCreditado);
+        // 3) Gold derivado do XP BASE (RN02) — o multiplicador de streak bonifica só o XP (RN03).
+        var gold = _recompensa.GoldPorXp(xpBase);
         player.Gold += gold;
 
         // 4) Recalcula nível (RN01).

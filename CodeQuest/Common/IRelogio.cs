@@ -10,9 +10,13 @@ public interface IRelogio
     DateOnly Hoje { get; }
 }
 
-/// <summary>Implementação real baseada no relógio do sistema (horário local do usuário).</summary>
+/// <summary>
+/// Implementação real baseada no relógio do sistema, em <b>UTC</b>. O Postgres persiste os
+/// <c>DateTime</c> como <c>timestamptz</c> e só aceita <c>Kind=Utc</c> — usar horário local
+/// estoura na escrita. Todos os defaults dos models (<c>DateTime.UtcNow</c>) seguem a mesma convenção.
+/// </summary>
 public sealed class RelogioSistema : IRelogio
 {
-    public DateTime Agora => DateTime.Now;
-    public DateOnly Hoje => DateOnly.FromDateTime(DateTime.Now);
+    public DateTime Agora => DateTime.UtcNow;
+    public DateOnly Hoje => DateOnly.FromDateTime(DateTime.UtcNow);
 }

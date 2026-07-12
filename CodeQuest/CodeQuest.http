@@ -39,3 +39,84 @@ Content-Type: application/json
 
 ### 5) Sem token → deve retornar 401
 GET {{host}}/api/player
+
+### --- Missões (fase 3) ---
+
+### 6) Faixas de XP por esforço (RN04)
+GET {{host}}/api/missoes/faixas
+Authorization: Bearer {{token}}
+
+### 7) Missões do dia
+GET {{host}}/api/missoes/dia
+Authorization: Bearer {{token}}
+
+### 8) Criar missão manual (XP dentro da faixa do esforço)
+# @name criarMissao
+POST {{host}}/api/missoes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "titulo": "Resolver 3 exercícios de arrays",
+  "esforco": "Media",
+  "xp": 40,
+  "descricao": "Foco em manipulação de arrays"
+}
+
+### 9) Concluir a missão criada acima (credita XP+gold)
+POST {{host}}/api/missoes/{{criarMissao.response.body.id}}/concluir
+Authorization: Bearer {{token}}
+
+### --- Loja (fase 3) ---
+
+### 10) Itens da loja
+GET {{host}}/api/loja/itens
+Authorization: Bearer {{token}}
+
+### 11) Comprar item 1 (devolve o gold restante)
+POST {{host}}/api/loja/comprar/1
+Authorization: Bearer {{token}}
+
+### --- Exercícios com IA (fase 2) — requer Gemini:ApiKey em user secrets ---
+
+### 12) Gerar exercício (RF14). topicoId: consulte a tabela Topicos (seed da árvore).
+# @name gerarExercicio
+POST {{host}}/api/exercicios/gerar
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "topicoId": 1,
+  "dificuldade": "Medium",
+  "formato": "Codigo"
+}
+
+### 13) Responder o exercício gerado acima (RF15 — nota, feedback, XP/revisão)
+POST {{host}}/api/exercicios/{{gerarExercicio.response.body.id}}/responder
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "resposta": "// cole aqui a sua solução em C#"
+}
+
+### 14) Critérios de aceite:
+###     a) Variedade (motor-ia §10.2): rode o 12) CINCO vezes com o mesmo topicoId e compare
+###        títulos/cenários — nenhum parecido. Depois "Easy" vs "Expert" no mesmo tópico.
+###     b) Formatos (motor-ia §8): gere e responda 1 exercício de CADA formato no mesmo
+###        tópico — "MultiplaEscolha", "Codigo", "Debug", "Refactor", "CodeReview",
+###        "LeituraDeCodigo" — e confira enunciados claramente diferentes entre si:
+###        Debug traz codigoApresentado + comportamentoEsperado; Refactor traz casosDeTeste
+###        públicos que não podem quebrar; CodeReview corrige pela proporção de problemas
+###        plantados encontrados.
+
+### 15) Exemplo: gerar um Debug no mesmo tópico
+POST {{host}}/api/exercicios/gerar
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "topicoId": 1,
+  "dificuldade": "Medium",
+  "formato": "Debug"
+}

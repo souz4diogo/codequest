@@ -4,7 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <!-- RNF02: a chave do Gemini vive em user secrets (dev) ou variável de ambiente (prod) — nunca no código. -->
+    <UserSecretsId>codequest-api</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

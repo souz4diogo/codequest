@@ -15,7 +15,7 @@ public sealed record PlayerDto(
     bool PocaoStreakAtiva,
     int XpParaProximoNivel);
 
-/// <summary>Entrada do endpoint de teste que credita XP (equivalente aos botões "+XP" do Dashboard Blazor).</summary>
+/// <summary>Entrada do endpoint de teste que credita XP.</summary>
 public sealed record AdicionarXpRequest(int XpBase);
 
 /// <summary>Resultado detalhado de creditar XP — espelha o <see cref="ResultadoXp"/> do domínio.</summary>

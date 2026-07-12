@@ -55,4 +55,14 @@ export const api = {
     request("/api/auth/login", { method: "POST", body: { login, senha }, auth: false }),
   obterPlayer: () => request("/api/player"),
   adicionarXp: (xpBase) => request("/api/player/xp", { method: "POST", body: { xpBase } }),
+
+  // Missões (RF09–RF13)
+  missoesDoDia: () => request("/api/missoes/dia"),
+  faixasEsforco: () => request("/api/missoes/faixas"),
+  criarMissao: (dados) => request("/api/missoes", { method: "POST", body: dados }),
+  concluirMissao: (id) => request(`/api/missoes/${id}/concluir`, { method: "POST" }),
+
+  // Loja (RF20)
+  itensLoja: () => request("/api/loja/itens"),
+  comprarItem: (itemId) => request(`/api/loja/comprar/${itemId}`, { method: "POST" }),
 };

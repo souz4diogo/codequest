@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CodeQuest.Data;
 
 /// <summary>
-/// Contexto EF Core do CodeQuest (SQLite). Mantém apenas mapeamento e configuração de
-/// persistência — nenhuma regra de jogo vive aqui (isso é responsabilidade dos serviços).
+/// Contexto EF Core do CodeQuest (PostgreSQL via Npgsql). Mantém apenas mapeamento e configuração
+/// de persistência — nenhuma regra de jogo vive aqui (isso é responsabilidade dos serviços).
 /// </summary>
 public class AppDbContext : DbContext
 {
@@ -37,7 +37,7 @@ public class AppDbContext : DbContext
         model.Entity<ModuloPrereq>().HasKey(x => new { x.ModuloId, x.RequerModuloId });
         model.Entity<MissaoExercicio>().HasKey(x => new { x.MissaoId, x.ExercicioId });
 
-        // ModuloPrereq referencia Modulo duas vezes: desliga cascade para evitar ciclos no SQLite.
+        // ModuloPrereq referencia Modulo duas vezes: desliga cascade para evitar ciclos de exclusão.
         model.Entity<ModuloPrereq>()
             .HasOne(x => x.Modulo).WithMany(m => m.PreRequisitos)
             .HasForeignKey(x => x.ModuloId).OnDelete(DeleteBehavior.Restrict);
@@ -53,6 +53,20 @@ public class AppDbContext : DbContext
         // ---- Player: gold nunca negativo (RN) ----
         // Aspas no nome da coluna: o Postgres preserva a caixa só com identificador aspado.
         model.Entity<Player>().ToTable(t => t.HasCheckConstraint("CK_Player_Gold", "\"Gold\" >= 0"));
+
+        // ---- Faixas 0–100 da seção 2 do doc de requisitos (notas e nível estimado) ----
+        model.Entity<Topico>().ToTable(t =>
+            t.HasCheckConstraint("CK_Topico_NivelEstimado", "\"NivelEstimado\" BETWEEN 0 AND 100"));
+        model.Entity<Tentativa>().ToTable(t =>
+            t.HasCheckConstraint("CK_Tentativa_Nota", "\"Nota\" BETWEEN 0 AND 100"));
+        model.Entity<Teste>().ToTable(t =>
+            t.HasCheckConstraint("CK_Teste_Nota", "\"Nota\" IS NULL OR \"Nota\" BETWEEN 0 AND 100"));
+        model.Entity<Modulo>().ToTable(t =>
+            t.HasCheckConstraint("CK_Modulo_NotaBoss", "\"NotaBoss\" IS NULL OR \"NotaBoss\" BETWEEN 0 AND 100"));
+
+        // ---- SessaoFoco aponta para projeto OU tópico — exatamente um dos dois (seção 2.2) ----
+        model.Entity<SessaoFoco>().ToTable(t =>
+            t.HasCheckConstraint("CK_SessaoFoco_Alvo", "num_nonnulls(\"ProjetoId\", \"TopicoId\") = 1"));
 
         // ---- Usuario ↔ Player (1:1) e login único ----
         model.Entity<Usuario>().HasIndex(u => u.Login).IsUnique();

@@ -12,8 +12,8 @@ public sealed record OpcoesJwt(string Secret, string Issuer, string Audience, in
 public sealed record TokenGerado(string Token, DateTime ExpiraEm);
 
 /// <summary>
-/// Emite o JWT que a SPA React usa como Bearer. Substitui o <c>SignInAsync</c> por cookie do
-/// login Blazor: aqui não há sessão no servidor — o token carrega os claims e é validado a cada request.
+/// Emite o JWT que a SPA React usa como Bearer: não há sessão no servidor — o token carrega
+/// os claims e é validado a cada request.
 /// </summary>
 public interface IGeradorTokenJwt
 {
@@ -32,7 +32,7 @@ public sealed class GeradorTokenJwt : IGeradorTokenJwt
         var credenciais = new SigningCredentials(chave, SecurityAlgorithms.HmacSha256);
         var expiraEm = DateTime.UtcNow.AddMinutes(_opcoes.ExpiraEmMinutos);
 
-        // Mesmos claims do cookie (ClaimsCodeQuest) — inclui o PlayerId, que o IUsuarioAtual lê.
+        // Claims de ClaimsCodeQuest — inclui o PlayerId, que o IUsuarioAtual lê.
         var token = new JwtSecurityToken(
             issuer: _opcoes.Issuer,
             audience: _opcoes.Audience,

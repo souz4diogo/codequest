@@ -1,12 +1,11 @@
 namespace CodeQuest.Services.Regras;
 
 /// <summary>
-/// RN01 — Progressão de nível a partir do XP acumulado.
-/// O documento define o limiar como "XP acumulado ≥ 50 × N²". Interpretamos esse valor
-/// como o XP necessário para ALCANÇAR o nível N+1 (curva clássica de gamificação), de forma
-/// que o jogador comece no nível 1 com 0 XP:
-///   - XP para chegar ao nível N = 50 × (N-1)²   →  nível 1 = 0, nível 2 = 50, nível 3 = 200…
-///   - Nível(xp) = 1 + ⌊√(xp / 50)⌋
+/// RN01 — Progressão de nível a partir do XP acumulado: alcança o nível N quando
+/// XPacumulado ≥ 50 × N². Âncoras do plano (seção 2): nível 2 = 200 XP,
+/// nível 5 = 1.250, nível 10 = 5.000.
+///   - XP para alcançar o nível N = 50 × N² (nível 1 começa em 0)
+///   - Nível(xp) = max(1, ⌊√(xp / 50)⌋)
 /// </summary>
 public interface IReguladorNivel
 {
@@ -27,14 +26,13 @@ public sealed class ReguladorNivel : IReguladorNivel
     public int CalcularNivel(int xpTotal)
     {
         if (xpTotal < 0) throw new ArgumentOutOfRangeException(nameof(xpTotal));
-        return 1 + (int)Math.Floor(Math.Sqrt((double)xpTotal / Fator));
+        return Math.Max(1, (int)Math.Floor(Math.Sqrt((double)xpTotal / Fator)));
     }
 
     public int XpParaNivel(int nivel)
     {
         if (nivel < 1) throw new ArgumentOutOfRangeException(nameof(nivel));
-        var n = nivel - 1;
-        return Fator * n * n;
+        return nivel == 1 ? 0 : Fator * nivel * nivel;
     }
 
     public int XpFaltandoParaProximoNivel(int xpTotal)

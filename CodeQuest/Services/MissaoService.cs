@@ -95,6 +95,8 @@ public sealed class MissaoService : IMissaoService
     {
         // Só o dono conclui a própria missão (isolamento entre usuários).
         var playerId = await _usuario.ObterPlayerIdAsync(ct);
+        await ExpirarVencidasAsync(playerId, ct); // RN10: missão de ontem não pode mais ser concluída
+
         var missao = await _db.Missoes.FirstOrDefaultAsync(m => m.Id == missaoId && m.PlayerId == playerId, ct);
         if (missao is null)
             return Resultado.Falha<ResultadoXp>("Missão não encontrada.");
@@ -117,9 +119,31 @@ public sealed class MissaoService : IMissaoService
     public async Task<IReadOnlyList<Missao>> ListarDoDiaAsync(CancellationToken ct = default)
     {
         var playerId = await _usuario.ObterPlayerIdAsync(ct);
+        await ExpirarVencidasAsync(playerId, ct);
+
         return await _db.Missoes
             .Where(m => m.PlayerId == playerId && m.DataAlvo == _relogio.Hoje)
             .OrderBy(m => m.Status)
             .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// RN10 — missões abertas de dias anteriores expiram (sem punição além da perda do streak
+    /// do dia). Expiração preguiçosa: aplicada quando o jogador consulta/conclui missões, o que
+    /// dispensa um job à meia-noite e dá o mesmo resultado observável.
+    /// </summary>
+    private async Task ExpirarVencidasAsync(int playerId, CancellationToken ct)
+    {
+        var hoje = _relogio.Hoje;
+        var vencidas = await _db.Missoes
+            .Where(m => m.PlayerId == playerId
+                && (m.Status == StatusMissao.Pendente || m.Status == StatusMissao.EmAndamento)
+                && m.DataAlvo < hoje)
+            .ToListAsync(ct);
+        if (vencidas.Count == 0) return;
+
+        foreach (var missao in vencidas)
+            missao.Status = StatusMissao.Expirada;
+        await _db.SaveChangesAsync(ct);
     }
 }

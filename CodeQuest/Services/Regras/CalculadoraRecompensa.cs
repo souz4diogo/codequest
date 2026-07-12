@@ -2,7 +2,7 @@ namespace CodeQuest.Services.Regras;
 
 /// <summary>
 /// RN02 e RN03 — conversão de XP em gold e multiplicador de streak.
-///   - Gold = ⌈XP da atividade / 3⌉ (RN02)
+///   - Gold = ⌈XP base da atividade / 3⌉ (RN02) — o streak NÃO bonifica gold.
 ///   - Multiplicador = 1 + min(streak, 5) × 0,10, teto +50% (RN03), aplicado só ao XP.
 /// </summary>
 public interface ICalculadoraRecompensa
@@ -13,7 +13,7 @@ public interface ICalculadoraRecompensa
     /// <summary>Aplica o multiplicador de streak ao XP base, arredondando para inteiro.</summary>
     int AplicarMultiplicador(int xpBase, int streakDias);
 
-    /// <summary>Gold ganho a partir do XP efetivamente creditado.</summary>
+    /// <summary>Gold ganho a partir do XP base da atividade (antes do multiplicador de streak).</summary>
     int GoldPorXp(int xp);
 }
 

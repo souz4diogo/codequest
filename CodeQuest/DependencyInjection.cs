@@ -4,9 +4,9 @@ using CodeQuest.Common;
 using CodeQuest.Data;
 using CodeQuest.Models;
 using CodeQuest.Services;
+using CodeQuest.Services.Ai;
 using CodeQuest.Services.Loja;
 using CodeQuest.Services.Regras;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -31,11 +31,15 @@ public static class DependencyInjection
         services.AddSingleton<IRelogio, RelogioSistema>();
         services.AddHttpContextAccessor();
 
-        // Regras de negócio (puras, stateless → singleton)
-        services.AddSingleton<IReguladorNivel, ReguladorNivel>();
-        services.AddSingleton<ICalculadoraRecompensa, CalculadoraRecompensa>();
-        services.AddSingleton<IPoliticaStreak, PoliticaStreak>();
-        services.AddSingleton<IPoliticaRecompensaMissao, PoliticaRecompensaMissao>();
+        // Regras de negócio (puras, stateless → singleton) — RN01–RN10 centralizadas aqui
+        services.AddSingleton<IReguladorNivel, ReguladorNivel>();               // RN01
+        services.AddSingleton<ICalculadoraRecompensa, CalculadoraRecompensa>(); // RN02/RN03
+        services.AddSingleton<IPoliticaRecompensaMissao, PoliticaRecompensaMissao>(); // RN04
+        services.AddSingleton<IPoliticaStreak, PoliticaStreak>();               // RN05
+        services.AddSingleton<IPoliticaRevisao, PoliticaRevisao>();             // RN06
+        services.AddSingleton<ICalculadoraNivelTopico, CalculadoraNivelTopico>(); // RN07
+        services.AddSingleton<IPoliticaArvore, PoliticaArvore>();               // RN08
+        services.AddSingleton<ITabelaRecompensas, TabelaRecompensas>();         // RN09
 
         // Efeitos de itens da loja (Strategy/OCP) — registre novos itens com efeito aqui.
         services.AddScoped<IEfeitoItemLoja, EfeitoPocaoStreak>();
@@ -44,8 +48,13 @@ public static class DependencyInjection
         services.AddScoped<IGameService, GameService>();
         services.AddScoped<ILojaService, LojaService>();
         services.AddScoped<IMissaoService, MissaoService>();
+        services.AddScoped<IExercicioService, ExercicioService>();
 
-        // Autenticação (cookie do Blazor + JWT da API React) e serviços de identidade
+        // IA (Gemini) — chave em Gemini:ApiKey (user secrets/env, RNF02); timeout 30s (RNF04,
+        // o retry vive no client). O app sobe e funciona sem a chave (modo degradado, RNF07).
+        services.AddHttpClient<IGeminiClient, GeminiClient>(http => http.Timeout = TimeSpan.FromSeconds(30));
+
+        // Autenticação (JWT da API React) e serviços de identidade
         services.AddAutenticacaoCodeQuest(config);
         services.AddSingleton<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
         services.AddScoped<IServicoAutenticacao, ServicoAutenticacao>();
@@ -58,12 +67,8 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Dois esquemas coexistem durante a migração:
-    /// <list type="bullet">
-    ///   <item><b>Cookie</b> (padrão) — usado pelas telas Blazor ainda vivas.</item>
-    ///   <item><b>JWT Bearer</b> — usado pela API que a SPA React consome (endpoints <c>[Authorize(Bearer)]</c>).</item>
-    /// </list>
-    /// Quando o Blazor sair, o cookie e o <c>CascadingAuthenticationState</c> saem com ele.
+    /// Autenticação por <b>JWT Bearer</b>: a SPA React consome a API enviando o token no header
+    /// <c>Authorization</c> (endpoints <c>[Authorize]</c>). Não há sessão no servidor.
     /// </summary>
     private static IServiceCollection AddAutenticacaoCodeQuest(this IServiceCollection services, IConfiguration config)
     {
@@ -71,18 +76,7 @@ public static class DependencyInjection
         services.AddSingleton(jwt);
         services.AddSingleton<IGeradorTokenJwt, GeradorTokenJwt>();
 
-        services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-            .AddCookie(opt =>
-            {
-                opt.Cookie.Name = "CodeQuest.Auth";
-                opt.LoginPath = "/login";
-                opt.LogoutPath = "/logout";
-                opt.AccessDeniedPath = "/login";
-                opt.ExpireTimeSpan = TimeSpan.FromDays(7);
-                opt.SlidingExpiration = true;
-                opt.Cookie.HttpOnly = true;
-                opt.Cookie.SameSite = SameSiteMode.Lax;
-            })
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(opt =>
             {
                 // Claims customizados (ex.: codequest:player_id) chegam sem remapeamento.
@@ -101,7 +95,6 @@ public static class DependencyInjection
             });
 
         services.AddAuthorization();
-        services.AddCascadingAuthenticationState();
 
         return services;
     }

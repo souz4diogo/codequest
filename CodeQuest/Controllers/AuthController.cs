@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace CodeQuest.Controllers;
 
 /// <summary>
-/// Autenticação da API React. Substitui as páginas Login/Registrar do Blazor: em vez de emitir
-/// cookie via <c>SignInAsync</c>, valida as credenciais e devolve um JWT que a SPA guarda e reenvia.
-/// A regra de domínio continua em <see cref="IServicoAutenticacao"/> — o controller só orquestra.
+/// Autenticação da API React: valida as credenciais e devolve um JWT que a SPA guarda e reenvia
+/// no header <c>Authorization</c>. A regra de domínio continua em <see cref="IServicoAutenticacao"/>
+/// — o controller só orquestra.
 /// </summary>
 [ApiController]
 [Route("api/auth")]

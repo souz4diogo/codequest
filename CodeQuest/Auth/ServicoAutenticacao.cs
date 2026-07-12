@@ -7,8 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace CodeQuest.Auth;
 
 /// <summary>
-/// Regras de registro e validação de credenciais. Não emite cookie (isso é responsabilidade
-/// do endpoint/página de login, que tem acesso ao HttpContext) — aqui fica só a lógica de
+/// Regras de registro e validação de credenciais. Não emite o token (isso é responsabilidade
+/// do <see cref="IGeradorTokenJwt"/>, acionado pelo controller) — aqui fica só a lógica de
 /// domínio: unicidade do login, hash da senha e criação do Player 1:1 no registro.
 /// </summary>
 public interface IServicoAutenticacao

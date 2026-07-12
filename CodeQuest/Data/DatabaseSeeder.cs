@@ -12,8 +12,10 @@ public interface ISeeder
 }
 
 /// <summary>
-/// Seed idempotente: só insere o que ainda não existe, então pode rodar a cada boot com
-/// segurança. Aplica as migrations pendentes antes de semear.
+/// Seed idempotente em modo SINCRONIZAÇÃO: alinha o banco ao plano a cada boot — insere o que
+/// falta e corrige nomes/preços, mas nunca apaga dados do jogador. Tópicos fora do currículo
+/// são arquivados e itens fora do catálogo são desativados (histórico e FKs preservados).
+/// Aplica as migrations pendentes antes de semear.
 /// </summary>
 public sealed class DatabaseSeeder : ISeeder
 {
@@ -21,76 +23,151 @@ public sealed class DatabaseSeeder : ISeeder
 
     public DatabaseSeeder(AppDbContext db) => _db = db;
 
+    /// <summary>Currículo junior fullstack — seção 3 do plano-codequest.md (10 módulos + tópicos).</summary>
+    private static readonly (int Ordem, string Nome, string[] Topicos)[] Curriculo =
+    [
+        (1, "Fundamentos C#",
+            ["Sintaxe e tipos", "Controle de fluxo", "Métodos", "Coleções", "Strings", "Tratamento de exceções"]),
+        (2, "POO",
+            ["Classes e objetos", "Herança", "Interfaces", "Polimorfismo", "Encapsulamento", "Composição vs herança"]),
+        (3, "C# intermediário",
+            ["LINQ", "Generics", "Delegates e eventos", "Async/await", "System.Text.Json"]),
+        (4, "Banco de dados",
+            ["Modelagem", "SQL (SELECT, JOIN, GROUP BY)", "Índices", "Transações", "PostgreSQL (psql, tipos, sequences)"]),
+        (5, "EF Core",
+            ["Migrations", "Relacionamentos", "Queries", "Tracking", "Performance básica"]),
+        (6, "Back-end / APIs",
+            ["ASP.NET Core", "REST e verbos HTTP", "Status codes", "Validação", "Autenticação (JWT)", "Middleware"]),
+        (7, "Front-end web",
+            ["HTML", "CSS (flex e grid)", "JavaScript essencial", "React (componentes, hooks, estado)", "Fetch e consumo de API"]),
+        (8, "Ferramentas do ofício",
+            ["Git e GitHub (branch, PR, merge)", "Debugging", "Terminal", "NuGet"]),
+        (9, "Qualidade",
+            ["Testes unitários (xUnit)", "SOLID básico", "Code review", "Clean code"]),
+        (10, "Deploy & mundo real",
+            ["Publicação (Fly.io/Railway)", "Variáveis de ambiente", "Logs", "CI básico (GitHub Actions)"]),
+    ];
+
+    /// <summary>
+    /// Pré-requisitos (RF06). Do plano (seção 3): 1→2→3 em sequência, 4 em paralelo a partir
+    /// do 2, 7 em paralelo a partir do 3. Os demais pares seguem a progressão natural do currículo.
+    /// </summary>
+    private static readonly (int Modulo, int Requer)[] Prereqs =
+    [
+        (2, 1), (3, 2), (4, 2), (5, 3), (5, 4), (6, 5), (7, 3), (8, 1), (9, 2), (10, 6), (10, 9),
+    ];
+
+    /// <summary>Catálogo da loja — seção 2 do plano ("Gold e loja"). Descanso comprado é sem culpa.</summary>
+    private static readonly (string Nome, int CustoGold)[] Catalogo =
+    [
+        ("30 min de jogo", 60),
+        ("1 hora de jogo", 100),
+        ("Noite livre", 250),
+        (ItensLojaConhecidos.PocaoDeStreak, 400),
+        ("Sábado livre inteiro", 600),
+    ];
+
     public async Task ExecutarAsync(CancellationToken ct = default)
     {
         await _db.Database.MigrateAsync(ct);
 
-        await SemearArvoreAsync(ct);
-        await SemearLojaAsync(ct);
+        await SincronizarArvoreAsync(ct);
+        await SincronizarLojaAsync(ct);
 
         await _db.SaveChangesAsync(ct);
     }
 
-    private async Task SemearArvoreAsync(CancellationToken ct)
+    private async Task SincronizarArvoreAsync(CancellationToken ct)
     {
-        if (await _db.Modulos.AnyAsync(ct)) return;
+        var modulos = await _db.Modulos.Include(m => m.Topicos).ToListAsync(ct);
 
-        // 10 módulos da trilha de C#. O primeiro nasce Liberado; os demais, Bloqueados.
-        var modulos = new List<Modulo>
+        // Módulos: casa por Ordem (identidade estável) e alinha o nome ao plano.
+        // O Status é progresso do jogo e nunca é sobrescrito; módulo novo nasce Bloqueado, exceto o 1º.
+        foreach (var (ordem, nome, _) in Curriculo)
         {
-            new() { Ordem = 1, Nome = "Fundamentos C#", Status = StatusModulo.Liberado },
-            new() { Ordem = 2, Nome = "Orientação a Objetos", Status = StatusModulo.Bloqueado },
-            new() { Ordem = 3, Nome = "Coleções e Genéricos", Status = StatusModulo.Bloqueado },
-            new() { Ordem = 4, Nome = "LINQ", Status = StatusModulo.Bloqueado },
-            new() { Ordem = 5, Nome = "Tratamento de Erros e Debugging", Status = StatusModulo.Bloqueado },
-            new() { Ordem = 6, Nome = "Async e Concorrência", Status = StatusModulo.Bloqueado },
-            new() { Ordem = 7, Nome = "Acesso a Dados (EF Core)", Status = StatusModulo.Bloqueado },
-            new() { Ordem = 8, Nome = "APIs Web (ASP.NET Core)", Status = StatusModulo.Bloqueado },
-            new() { Ordem = 9, Nome = "Testes Automatizados", Status = StatusModulo.Bloqueado },
-            new() { Ordem = 10, Nome = "Arquitetura e SOLID", Status = StatusModulo.Bloqueado },
-        };
-        _db.Modulos.AddRange(modulos);
-        await _db.SaveChangesAsync(ct); // gera os Ids para os pré-requisitos e tópicos
+            var modulo = modulos.FirstOrDefault(m => m.Ordem == ordem);
+            if (modulo is null)
+            {
+                modulo = new Modulo
+                {
+                    Ordem = ordem,
+                    Nome = nome,
+                    Status = ordem == 1 ? StatusModulo.Liberado : StatusModulo.Bloqueado,
+                };
+                _db.Modulos.Add(modulo);
+                modulos.Add(modulo);
+            }
+            else
+            {
+                modulo.Nome = nome;
+            }
+        }
+        await _db.SaveChangesAsync(ct); // garante os Ids para pré-requisitos e tópicos
 
         Modulo M(int ordem) => modulos.First(m => m.Ordem == ordem);
 
-        // Pré-requisitos (RF06). Cada par: módulo → módulo exigido.
-        var prereqs = new (int Modulo, int Requer)[]
-        {
-            (2, 1), (3, 2), (4, 3), (5, 2), (6, 3),
-            (7, 3), (8, 7), (9, 2), (10, 8), (10, 9),
-        };
-        _db.ModuloPrereqs.AddRange(prereqs.Select(p => new ModuloPrereq
-        {
-            ModuloId = M(p.Modulo).Id,
-            RequerModuloId = M(p.Requer).Id,
-        }));
+        // Pré-requisitos: sincroniza o conjunto — adiciona os que faltam, remove os que saíram do plano.
+        var atuais = await _db.ModuloPrereqs.ToListAsync(ct);
+        var desejados = Prereqs
+            .Select(p => (ModuloId: M(p.Modulo).Id, RequerId: M(p.Requer).Id))
+            .ToHashSet();
+        _db.ModuloPrereqs.RemoveRange(
+            atuais.Where(a => !desejados.Contains((a.ModuloId, a.RequerModuloId))));
+        var existentes = atuais.Select(a => (a.ModuloId, a.RequerModuloId)).ToHashSet();
+        _db.ModuloPrereqs.AddRange(desejados
+            .Where(d => !existentes.Contains(d))
+            .Select(d => new ModuloPrereq { ModuloId = d.ModuloId, RequerModuloId = d.RequerId }));
 
-        // Tópicos iniciais dos primeiros módulos.
-        var topicosPorModulo = new Dictionary<int, string[]>
+        // Tópicos: insere os do currículo que faltam; os fora do plano são ARQUIVADOS, não
+        // removidos — podem ter exercícios/testes/dúvidas vinculados e o histórico fica intacto.
+        foreach (var (ordem, _, topicos) in Curriculo)
         {
-            [1] = ["Tipos e variáveis", "Controle de fluxo", "Métodos", "Strings"],
-            [2] = ["Classes e objetos", "Herança", "Interfaces", "Polimorfismo"],
-            [3] = ["List e arrays", "Dictionary", "Genéricos"],
-            [4] = ["Consultas LINQ", "Lambdas", "Métodos de extensão"],
-        };
-        foreach (var (ordem, nomes) in topicosPorModulo)
-            _db.Topicos.AddRange(nomes.Select(nome => new Topico
+            var modulo = M(ordem);
+
+            foreach (var nome in topicos)
             {
-                ModuloId = M(ordem).Id,
-                Nome = nome,
-            }));
+                var topico = modulo.Topicos.FirstOrDefault(
+                    t => string.Equals(t.Nome, nome, StringComparison.OrdinalIgnoreCase));
+                if (topico is null)
+                    _db.Topicos.Add(new Topico { ModuloId = modulo.Id, Nome = nome });
+                else
+                    topico.Arquivado = false; // voltou ao plano: reativa
+            }
+
+            foreach (var orfao in modulo.Topicos.Where(
+                t => !topicos.Contains(t.Nome, StringComparer.OrdinalIgnoreCase)))
+            {
+                orfao.Arquivado = true;
+            }
+        }
     }
 
-    private async Task SemearLojaAsync(CancellationToken ct)
+    private async Task SincronizarLojaAsync(CancellationToken ct)
     {
-        if (await _db.ItensLoja.AnyAsync(ct)) return;
+        var itens = await _db.ItensLoja.ToListAsync(ct);
 
-        _db.ItensLoja.AddRange(
-            new ItemLoja { Nome = ItensLojaConhecidos.PocaoDeStreak, CustoGold = 50 },
-            new ItemLoja { Nome = "Dica Extra", CustoGold = 20 },
-            new ItemLoja { Nome = "Tema Escuro", CustoGold = 30 },
-            new ItemLoja { Nome = "Boost XP 2x (1h)", CustoGold = 80 },
-            new ItemLoja { Nome = "Skin Pixel Art", CustoGold = 100 });
+        // Upsert por nome; o preço vem sempre do catálogo do plano.
+        foreach (var (nome, custo) in Catalogo)
+        {
+            var item = itens.FirstOrDefault(
+                i => string.Equals(i.Nome, nome, StringComparison.OrdinalIgnoreCase));
+            if (item is null)
+            {
+                _db.ItensLoja.Add(new ItemLoja { Nome = nome, CustoGold = custo });
+            }
+            else
+            {
+                item.CustoGold = custo;
+                item.Ativo = true;
+            }
+        }
+
+        // Itens fora do catálogo saem de linha (Ativo = false) — compras antigas continuam íntegras
+        // porque CompraLoja guarda o preço pago na época e a FK permanece válida.
+        foreach (var fora in itens.Where(
+            i => !Catalogo.Any(c => string.Equals(c.Nome, i.Nome, StringComparison.OrdinalIgnoreCase))))
+        {
+            fora.Ativo = false;
+        }
     }
 }

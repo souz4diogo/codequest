@@ -1,7 +1,5 @@
 using CodeQuest;
-using CodeQuest.Components;
 using CodeQuest.Data;
-using Microsoft.AspNetCore.Authentication;
 
 // Carrega o .env (na raiz do repo) para variáveis de ambiente antes de montar a configuração.
 // Em produção/Docker as variáveis já vêm do ambiente, então a ausência do arquivo é ignorada.
@@ -11,12 +9,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 const string CorsFront = "front";
 
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-
-// API REST consumida pela SPA React.
-builder.Services.AddControllers();
+// API REST consumida pela SPA React. Enums viajam como string (Status/Tipo/Esforço legíveis no JSON,
+// imunes a reordenação dos membros) — casa com a mesma decisão do HasConversion<string>() no banco.
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+        o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 // CORS liberado só para a origem do front (Vite). JWT vai no header, então não precisa de credenciais.
 builder.Services.AddCors(o => o.AddPolicy(CorsFront, p => p
@@ -39,30 +36,16 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
 app.UseCors(CorsFront);
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseAntiforgery();
 
-// Endpoints REST da API (consumidos pelo React).
+// Endpoints REST da API (consumidos pelo React). O logout é client-side: a SPA descarta o JWT.
 app.MapControllers();
-
-app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
-
-// Logout: encerra a sessão e volta para o login. POST para evitar logout por link/GET.
-app.MapPost("/logout", async (HttpContext http) =>
-{
-    await http.SignOutAsync(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
-    return Results.Redirect("/login");
-}).DisableAntiforgery();
 
 app.Run();

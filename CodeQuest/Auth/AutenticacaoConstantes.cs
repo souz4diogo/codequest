@@ -5,8 +5,8 @@ namespace CodeQuest.Auth;
 
 /// <summary>
 /// Nomes de claims e a fábrica do <see cref="ClaimsPrincipal"/> do usuário autenticado.
-/// Centralizado aqui para que login (cria o principal) e <see cref="IUsuarioAtual"/> (lê o
-/// principal) concordem sobre os nomes — fonte única de verdade.
+/// Centralizado aqui para que o gerador do JWT (embute as claims) e <see cref="IUsuarioAtual"/>
+/// (lê as claims) concordem sobre os nomes — fonte única de verdade.
 /// </summary>
 public static class ClaimsCodeQuest
 {
@@ -14,8 +14,7 @@ public static class ClaimsCodeQuest
     public const string PlayerId = "codequest:player_id";
 
     /// <summary>
-    /// Claims que identificam o usuário — compartilhadas pelo cookie (Blazor) e pelo JWT (API React),
-    /// para que os dois formatos de autenticação carreguem exatamente a mesma informação.
+    /// Claims que identificam o usuário, embutidas no JWT que a SPA React envia a cada request.
     /// </summary>
     public static IReadOnlyList<Claim> ConstruirClaims(Usuario usuario, int playerId) =>
         new List<Claim>
@@ -24,11 +23,4 @@ public static class ClaimsCodeQuest
             new(ClaimTypes.Name, usuario.Login),
             new(PlayerId, playerId.ToString()),
         };
-
-    /// <summary>Monta a identidade do usuário para o cookie de autenticação.</summary>
-    public static ClaimsPrincipal ConstruirPrincipal(Usuario usuario, int playerId)
-    {
-        var identidade = new ClaimsIdentity(ConstruirClaims(usuario, playerId), authenticationType: "CodeQuestCookie");
-        return new ClaimsPrincipal(identidade);
-    }
 }

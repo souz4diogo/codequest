@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
-import { useAuth } from "../auth/AuthContext.jsx";
+import Nav from "../components/Nav.jsx";
 
 // Porta do Dashboard.razor: cards de nível/XP/gold/streak, barra de XP e os botões de teste de XP.
 export default function Dashboard() {
-  const { sair } = useAuth();
   const [player, setPlayer] = useState(null);
   const [ultimo, setUltimo] = useState(null);
   const [erro, setErro] = useState(null);
@@ -49,14 +48,7 @@ export default function Dashboard() {
 
   return (
     <div className="content">
-      <header className="topo">
-        <span className="display" style={{ fontSize: 22 }}>
-          CodeQuest
-        </span>
-        <button className="btn btn-ghost" onClick={sair}>
-          Sair
-        </button>
-      </header>
+      <Nav />
 
       <section className="card hero">
         <span className="avatar avatar-lg">{player.nome.slice(0, 2).toUpperCase()}</span>
