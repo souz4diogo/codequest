@@ -25,12 +25,33 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       # Dentro da rede do compose o banco é o host "db"; credenciais vêm do .env.
       ConnectionStrings__CodeQuest: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
-      AUTH_COOKIE_SECRET: ${AUTH_COOKIE_SECRET}
+      # Assinatura dos JWTs emitidos para a SPA React; valor vem do .env.
+      Jwt__Secret: ${Jwt__Secret}
+      # Chave do Gemini (motor de IA); vem do .env. Sem ela a app sobe, mas os
+      # endpoints de exercício respondem em modo degradado (RNF07).
+      Gemini__ApiKey: ${Gemini__ApiKey}
+      # Modelo do Gemini; sobrescreve o padrão do GeminiClient sem recompilar.
+      Gemini__Model: ${Gemini__Model:-gemini-2.5-flash-lite}
+      # Origem do front containerizado (porta 3000 no host), para o CORS aceitar o navegador.
+      Cors__OrigemFront: "http://localhost:3000"
     ports:
       - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # URL da API do ponto de vista do NAVEGADOR (host), não da rede interna do compose.
+        VITE_API_URL: "http://localhost:8080"
+    container_name: codequest-frontend
+    ports:
+      # 3000 no host para não conflitar com o Vite dev server (5173).
+      - "3000:80"
+    depends_on:
+      - app
 
 volumes:
   pgdata:

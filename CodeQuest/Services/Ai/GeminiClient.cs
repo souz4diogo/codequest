@@ -36,9 +36,16 @@ public interface IGeminiClient
 public sealed class GeminiClient : IGeminiClient
 {
     // O doc citava gemini-2.0-flash, mas ele saiu do free tier (429, limit 0) — verificado em 12/07/2026.
-    // Sobrescreva via config "Gemini:Model" quando o modelo atual mudar de novo.
-    private const string ModeloPadrao = "gemini-2.5-flash";
+    // Medido em 25/08/2026 com a chave do free tier: gemini-2.5-flash levou 16–60s por geração e
+    // falhou em 2 de 4 tentativas; gemini-2.5-flash-lite resolveu as mesmas 4 em 2,9–15,6s com a
+    // mesma qualidade de enunciado. Sobrescreva via config "Gemini:Model" quando quiser comparar.
+    private const string ModeloPadrao = "gemini-2.5-flash-lite";
     private const int MaxTentativas = 2; // 1 chamada + 1 retry (RNF04)
+
+    // Timeout de INATIVIDADE (não de duração total): o corte acontece quando o modelo passa este
+    // tempo sem mandar nenhum chunk. Uma geração longa que está progredindo nunca é cancelada;
+    // uma conexão morta falha rápido. Ajustável por "Gemini:SegundosSemDados".
+    private const int SegundosSemDadosPadrao = 30;
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -76,7 +83,15 @@ public sealed class GeminiClient : IGeminiClient
             },
         };
         var json = JsonSerializer.Serialize(body);
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent";
+
+        // streamGenerateContent + SSE: o texto chega em pedaços. Isso existe pelo timeout, não pela
+        // UX — com a resposta em bloco único, o HttpClient.Timeout cobria a leitura inteira do corpo
+        // e matava gerações grandes no meio (RNF04). Lendo em stream o corte passa a ser por
+        // inatividade, medida abaixo.
+        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:streamGenerateContent?alt=sse";
+
+        var segundosSemDados = int.TryParse(_config["Gemini:SegundosSemDados"], out var s2)
+            ? s2 : SegundosSemDadosPadrao;
 
         Exception? ultimaFalha = null;
         for (var tentativa = 1; tentativa <= MaxTentativas; tentativa++)
@@ -89,16 +104,13 @@ public sealed class GeminiClient : IGeminiClient
                 };
                 req.Headers.Add("x-goog-api-key", apiKey);
 
-                var resp = await _http.SendAsync(req, ct);
+                // ResponseHeadersRead: devolve assim que os headers chegam, sem esperar o corpo.
+                var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
                 resp.EnsureSuccessStatusCode();
 
-                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
-                var texto = doc.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text").GetString()
-                    ?? throw new JsonException("Resposta do modelo veio sem texto.");
+                var texto = await LerTextoDoStreamAsync(resp, segundosSemDados, ct);
+                if (string.IsNullOrWhiteSpace(texto))
+                    throw new JsonException("Resposta do modelo veio sem texto.");
 
                 return JsonSerializer.Deserialize<T>(texto, JsonOpts)
                     ?? throw new JsonException("JSON do modelo desserializou como null.");
@@ -107,7 +119,7 @@ public sealed class GeminiClient : IGeminiClient
             {
                 throw; // cancelamento do chamador não é falha da IA — propaga
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException
+            catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException
                 or JsonException or KeyNotFoundException or IndexOutOfRangeException or InvalidOperationException)
             {
                 // RNF05: falha de transporte/parse é registrada e regenerada (1 retry) — nunca quebra a tela.
@@ -118,5 +130,41 @@ public sealed class GeminiClient : IGeminiClient
         }
 
         throw new IaIndisponivelException("Mentor IA indisponível no momento.", ultimaFalha);
+    }
+
+    /// <summary>
+    /// Concatena o texto dos chunks SSE (<c>data: {...}</c>) até o fim do stream. O relógio do
+    /// timeout reinicia a cada chunk recebido: o que derruba a chamada é o silêncio do modelo,
+    /// não o tamanho da resposta.
+    /// </summary>
+    private static async Task<string> LerTextoDoStreamAsync(HttpResponseMessage resp, int segundosSemDados,
+        CancellationToken ct)
+    {
+        await using var stream = await resp.Content.ReadAsStreamAsync(ct);
+        using var reader = new StreamReader(stream);
+        var texto = new StringBuilder();
+
+        while (true)
+        {
+            using var inatividade = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            inatividade.CancelAfter(TimeSpan.FromSeconds(segundosSemDados));
+
+            var linha = await reader.ReadLineAsync(inatividade.Token);
+            if (linha is null) break;                       // fim do stream
+            if (!linha.StartsWith("data: ", StringComparison.Ordinal)) continue;
+
+            using var doc = JsonDocument.Parse(linha["data: ".Length..]);
+            if (doc.RootElement.TryGetProperty("candidates", out var candidatos)
+                && candidatos.GetArrayLength() > 0
+                && candidatos[0].TryGetProperty("content", out var conteudo)
+                && conteudo.TryGetProperty("parts", out var partes)
+                && partes.GetArrayLength() > 0
+                && partes[0].TryGetProperty("text", out var parte))
+            {
+                texto.Append(parte.GetString());
+            }
+        }
+
+        return texto.ToString();
     }
 }

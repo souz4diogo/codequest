@@ -50,9 +50,11 @@ public static class DependencyInjection
         services.AddScoped<IMissaoService, MissaoService>();
         services.AddScoped<IExercicioService, ExercicioService>();
 
-        // IA (Gemini) — chave em Gemini:ApiKey (user secrets/env, RNF02); timeout 30s (RNF04,
-        // o retry vive no client). O app sobe e funciona sem a chave (modo degradado, RNF07).
-        services.AddHttpClient<IGeminiClient, GeminiClient>(http => http.Timeout = TimeSpan.FromSeconds(30));
+        // IA (Gemini) — chave em Gemini:ApiKey (user secrets/env, RNF02). Sem timeout no HttpClient
+        // de propósito: o dele cobriria a leitura do corpo inteiro e matava geração longa no meio.
+        // Quem corta é o timeout de INATIVIDADE do GeminiClient, que lê a resposta em stream (RNF04);
+        // o retry também vive lá. O app sobe e funciona sem a chave (modo degradado, RNF07).
+        services.AddHttpClient<IGeminiClient, GeminiClient>(http => http.Timeout = Timeout.InfiniteTimeSpan);
 
         // Autenticação (JWT da API React) e serviços de identidade
         services.AddAutenticacaoCodeQuest(config);
