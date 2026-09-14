@@ -3,7 +3,10 @@ using CodeQuest.Data;
 
 // Carrega o .env (na raiz do repo) para variáveis de ambiente antes de montar a configuração.
 // Em produção/Docker as variáveis já vêm do ambiente, então a ausência do arquivo é ignorada.
-DotNetEnv.Env.TraversePath().Load();
+// NoClobber() — se algo (ex.: WebApplicationFactory dos testes de integração) já setou a
+// variável antes deste ponto, o .env NÃO deve sobrescrever (o padrão da lib é sobrescrever,
+// o que fazia os testes conectarem no Postgres de desenvolvimento real).
+DotNetEnv.Env.TraversePath().NoClobber().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,3 +52,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+/// <summary>Expõe o entry point para o WebApplicationFactory dos testes de integração.</summary>
+public partial class Program;

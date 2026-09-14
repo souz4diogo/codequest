@@ -20,6 +20,14 @@ public sealed class ExercicioController : ControllerBase
 
     public ExercicioController(IExercicioService exercicios) => _exercicios = exercicios;
 
+    /// <summary>Tópicos disponíveis (módulos já liberados) para o front montar o seletor de geração.</summary>
+    [HttpGet("topicos")]
+    public async Task<ActionResult<IReadOnlyList<TopicoDto>>> ListarTopicos(CancellationToken ct)
+    {
+        var topicos = await _exercicios.ListarTopicosDisponiveisAsync(ct);
+        return Ok(topicos.Select(t => t.ParaDto()).ToList());
+    }
+
     /// <summary>Gera um exercício por tópico + dificuldade + formato (RF14) e o persiste (RF18).</summary>
     [HttpPost("gerar")]
     public async Task<ActionResult<ExercicioDto>> Gerar(GerarExercicioRequest req, CancellationToken ct)

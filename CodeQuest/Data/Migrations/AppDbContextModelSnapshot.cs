@@ -69,6 +69,9 @@ namespace CodeQuest.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("RespostaJson")
                         .HasColumnType("text");
 
@@ -76,6 +79,8 @@ namespace CodeQuest.Data.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PlayerId");
 
                     b.HasIndex("TopicoId");
 
@@ -453,6 +458,9 @@ namespace CodeQuest.Data.Migrations
                     b.Property<string>("GapsJson")
                         .HasColumnType("text");
 
+                    b.Property<int?>("ModuloId")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("Nota")
                         .HasColumnType("integer");
 
@@ -463,15 +471,19 @@ namespace CodeQuest.Data.Migrations
                     b.Property<string>("RespostasJson")
                         .HasColumnType("text");
 
-                    b.Property<int>("TopicoId")
+                    b.Property<int?>("TopicoId")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ModuloId");
 
                     b.HasIndex("TopicoId");
 
                     b.ToTable("Testes", t =>
                         {
+                            t.HasCheckConstraint("CK_Teste_Alvo", "num_nonnulls(\"ModuloId\", \"TopicoId\") = 1");
+
                             t.HasCheckConstraint("CK_Teste_Nota", "\"Nota\" IS NULL OR \"Nota\" BETWEEN 0 AND 100");
                         });
                 });
@@ -560,9 +572,17 @@ namespace CodeQuest.Data.Migrations
 
             modelBuilder.Entity("CodeQuest.Models.Duvida", b =>
                 {
+                    b.HasOne("CodeQuest.Models.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("CodeQuest.Models.Topico", "Topico")
                         .WithMany("Duvidas")
                         .HasForeignKey("TopicoId");
+
+                    b.Navigation("Player");
 
                     b.Navigation("Topico");
                 });
@@ -691,11 +711,16 @@ namespace CodeQuest.Data.Migrations
 
             modelBuilder.Entity("CodeQuest.Models.Teste", b =>
                 {
+                    b.HasOne("CodeQuest.Models.Modulo", "Modulo")
+                        .WithMany()
+                        .HasForeignKey("ModuloId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("CodeQuest.Models.Topico", "Topico")
                         .WithMany("Testes")
-                        .HasForeignKey("TopicoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TopicoId");
+
+                    b.Navigation("Modulo");
 
                     b.Navigation("Topico");
                 });

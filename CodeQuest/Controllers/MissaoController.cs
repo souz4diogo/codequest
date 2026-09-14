@@ -59,6 +59,18 @@ public sealed class MissaoController : ControllerBase
         return CreatedAtAction(nameof(ListarDoDia), missao.ParaDto());
     }
 
+    /// <summary>Estrutura uma missão a partir de texto livre (RF10): a IA sugere título/descrição/esforço,
+    /// o XP sai sempre da tabela do backend (RN09).</summary>
+    [HttpPost("sugerir")]
+    public async Task<ActionResult<MissaoDto>> Sugerir(SugerirMissaoRequest req, CancellationToken ct)
+    {
+        var resultado = await _missoes.SugerirAsync(req.Texto, ct);
+        if (!resultado.Sucesso || resultado.Valor is not { } missao)
+            return BadRequest(new { erro = resultado.Erro });
+
+        return CreatedAtAction(nameof(ListarDoDia), missao.ParaDto());
+    }
+
     /// <summary>Conclui uma missão e credita XP+gold. Devolve o detalhe da recompensa (subiu de nível, streak…).</summary>
     [HttpPost("{id:int}/concluir")]
     public async Task<ActionResult<ResultadoXpDto>> Concluir(int id, CancellationToken ct)

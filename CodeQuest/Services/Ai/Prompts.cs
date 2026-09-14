@@ -1,3 +1,4 @@
+using System.Linq;
 using CodeQuest.Models;
 
 namespace CodeQuest.Services.Ai;
@@ -202,5 +203,137 @@ public static class Prompts
             conceitosParaRevisar = new { type = "array", items = new { type = "string" } },
         },
         required = new[] { "nota", "aprovado", "conceitosParaRevisar" },
+    };
+
+    /// <summary>Temperatura do mentor: baixa, resposta técnica precisa vale mais que criatividade.</summary>
+    public const double TemperaturaMentor = 0.3;
+
+    /// <summary>Temperatura de estruturação de missão: baixa, é interpretação de pedido, não criação livre.</summary>
+    public const double TemperaturaMissao = 0.2;
+
+    /// <summary>System prompt de estruturação de missão a partir de texto livre (RF10).</summary>
+    public const string SystemSugestaoMissao = """
+        Você transforma um pedido em português do Brasil, escrito livremente pelo aluno, numa missão de estudo.
+        Regras:
+        - "titulo" curto e acionável (ex.: "Praticar herança com 3 exercícios").
+        - "descricao" (opcional, pode ser vazia) detalha o que fazer.
+        - "esforco" é EXATAMENTE um destes três valores: "Rapida" (até 15 min), "Media" (até 1h), "Longa" (mais de 1h) —
+          estime pela complexidade do pedido.
+        """;
+
+    /// <summary>User prompt de estruturação de missão (RF10).</summary>
+    public static string UserSugestaoMissao(string textoLivre) => $"""
+        PEDIDO DO ALUNO:
+        {textoLivre}
+        """;
+
+    /// <summary>responseSchema da missão sugerida — casa com <see cref="MissaoSugeridaIa"/>.</summary>
+    public static readonly object MissaoSugeridaSchema = new
+    {
+        type = "object",
+        properties = new
+        {
+            titulo = new { type = "string" },
+            descricao = new { type = "string" },
+            esforco = new { type = "string", @enum = new[] { "Rapida", "Media", "Longa" } },
+        },
+        required = new[] { "titulo", "esforco" },
+    };
+
+    /// <summary>System prompt do mentor (RF22): contexto automático do aluno injetado no user prompt.</summary>
+    public const string SystemMentor = """
+        Você é um mentor sênior de C#/.NET tirando dúvidas de um aluno em português do Brasil.
+        Regras:
+        - Responda em Markdown, direto ao ponto, sem enrolação.
+        - Use blocos de código (```csharp) sempre que ilustrar com código.
+        - Considere o nível e o tópico atual do aluno (contexto abaixo) para calibrar a profundidade da explicação.
+        - Se a pergunta for vaga, faça a leitura mais provável e responda; não devolva só perguntas.
+        """;
+
+    /// <summary>User prompt do mentor: contexto automático (tópico + nível) + pergunta (RF22).</summary>
+    public static string UserMentor(string? topico, int? nivelAluno, string pergunta) => $"""
+        CONTEXTO DO ALUNO: {(topico is null ? "nenhum tópico específico selecionado" : $"tópico atual \"{topico}\", nível {nivelAluno}/100")}
+
+        PERGUNTA:
+        {pergunta}
+        """;
+
+    /// <summary>responseSchema do mentor — casa com <see cref="RespostaMentorIa"/>.</summary>
+    public static readonly object MentorSchema = new
+    {
+        type = "object",
+        properties = new { resposta = new { type = "string" } },
+        required = new[] { "resposta" },
+    };
+
+    /// <summary>System prompt de teste de avaliação (RF17) e boss fight (RN08): só múltipla escolha —
+    /// o objetivo é medir nível/gaps rápido, não avaliar código escrito.</summary>
+    public static readonly string SystemGeracaoTeste = """
+        Você é um professor sênior de C#/.NET elaborando um teste de avaliação em português do Brasil.
+        Regras:
+        - Todas as questões são de múltipla escolha, 4 alternativas, exatamente uma correta.
+        - Distratores plausíveis baseados em erros comuns reais do conceito.
+        - Cubra conceitos DIFERENTES entre as questões — não repita o mesmo conceito duas vezes.
+        - "conceito" de cada questão é um nome curto (2–4 palavras) do que ela avalia — usado para registrar gaps.
+        - Siga a rubrica de dificuldade abaixo para calibrar a complexidade das questões.
+
+        RUBRICA DE DIFICULDADE:
+        {{RUBRICA}}
+        """.Replace("{{RUBRICA}}", RubricaDificuldade);
+
+    /// <summary>User prompt de teste por tópico único (RF17).</summary>
+    public static string UserGeracaoTeste(string topico, string modulo, Dificuldade dificuldade,
+        int nivelAluno, int quantidadeQuestoes) => $"""
+        TÓPICO: {topico} (módulo: {modulo})
+        DIFICULDADE: {dificuldade}
+        NÍVEL DO ALUNO NO TÓPICO: {nivelAluno}/100
+        QUANTIDADE DE QUESTÕES: {quantidadeQuestoes}, todas sobre este tópico.
+        """;
+
+    /// <summary>User prompt do boss fight (RN08): cobre todos os tópicos do módulo, uma questão cada.</summary>
+    public static string UserGeracaoBoss(string modulo, IReadOnlyList<string> topicos) => $"""
+        MÓDULO: {modulo}
+        DIFICULDADE: Expert (isto é o boss fight de conclusão do módulo)
+        QUANTIDADE DE QUESTÕES: {topicos.Count}, uma para cada um destes tópicos (nesta ordem, uma por tópico):
+        {string.Join("\n", topicos.Select((t, i) => $"{i + 1}. {t}"))}
+        """;
+
+    /// <summary>responseSchema de teste/boss — casa com <see cref="TesteIa"/>.</summary>
+    public static readonly object TesteSchema = new
+    {
+        type = "object",
+        properties = new
+        {
+            questoes = new
+            {
+                type = "array",
+                items = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        conceito = new { type = "string" },
+                        enunciado = new { type = "string" },
+                        alternativas = new
+                        {
+                            type = "array",
+                            items = new
+                            {
+                                type = "object",
+                                properties = new
+                                {
+                                    texto = new { type = "string" },
+                                    correta = new { type = "boolean" },
+                                    explicacao = new { type = "string" },
+                                },
+                                required = new[] { "texto", "correta", "explicacao" },
+                            },
+                        },
+                    },
+                    required = new[] { "conceito", "enunciado", "alternativas" },
+                },
+            },
+        },
+        required = new[] { "questoes" },
     };
 }

@@ -26,6 +26,9 @@ public sealed record ResultadoTentativa(
 /// </summary>
 public interface IExercicioService
 {
+    /// <summary>Tópicos de módulos já liberados (RF06) — o front usa para montar o seletor de geração.</summary>
+    Task<IReadOnlyList<Topico>> ListarTopicosDisponiveisAsync(CancellationToken ct = default);
+
     /// <summary>Gera um exercício por tópico + dificuldade (RF14) e persiste integralmente (RF18).</summary>
     Task<Resultado<Exercicio>> GerarAsync(int topicoId, Dificuldade dificuldade, FormatoExercicio formato,
         CancellationToken ct = default);
@@ -43,8 +46,6 @@ public sealed class ExercicioService : IExercicioService
     private const int MaxExerciciosRecentes = 10; // títulos que entram no prompt como "não repetir"
     private const int MaxErrosRecentes = 10;
     private const int JanelaHistoricoDias = 30;   // janela do RN07 e dos erros recentes
-
-    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
     private readonly AppDbContext _db;
     private readonly IGeminiClient _gemini;
@@ -72,6 +73,12 @@ public sealed class ExercicioService : IExercicioService
         _relogio = relogio;
     }
 
+    public async Task<IReadOnlyList<Topico>> ListarTopicosDisponiveisAsync(CancellationToken ct = default) =>
+        await _db.Topicos.Include(t => t.Modulo)
+            .Where(t => !t.Arquivado && t.Modulo.Status != StatusModulo.Bloqueado)
+            .OrderBy(t => t.Modulo.Ordem).ThenBy(t => t.Nome)
+            .ToListAsync(ct);
+
     public async Task<Resultado<Exercicio>> GerarAsync(int topicoId, Dificuldade dificuldade,
         FormatoExercicio formato, CancellationToken ct = default)
     {
@@ -79,6 +86,8 @@ public sealed class ExercicioService : IExercicioService
             .FirstOrDefaultAsync(t => t.Id == topicoId && !t.Arquivado, ct);
         if (topico is null)
             return Resultado.Falha<Exercicio>("Tópico não encontrado ou arquivado.");
+        if (topico.Modulo.Status == StatusModulo.Bloqueado)
+            return Resultado.Falha<Exercicio>("Módulo ainda bloqueado.");
 
         // Os 3 ingredientes anti-genérico (seção 1 do motor-ia): rubrica (no system prompt),
         // contexto do aluno (histórico abaixo) e cenário concreto sorteado.
@@ -123,8 +132,8 @@ public sealed class ExercicioService : IExercicioService
                 alternativas = gerado.Alternativas?.Select(a => new { a.Texto }),
                 dicas = gerado.Dicas,
                 cenario,
-            }, JsonOpts),
-            GabaritoJson = JsonSerializer.Serialize(gerado, JsonOpts), // completo (RF18)
+            }, JsonPadrao.Opcoes),
+            GabaritoJson = JsonSerializer.Serialize(gerado, JsonPadrao.Opcoes), // completo (RF18)
             CriadoEm = _relogio.Agora,
         };
         _db.Exercicios.Add(exercicio);
@@ -167,7 +176,7 @@ public sealed class ExercicioService : IExercicioService
             ExercicioId = exercicio.Id,
             Resposta = resposta,
             Nota = nota,
-            FeedbackJson = JsonSerializer.Serialize(correcao, JsonOpts), // persistido integralmente (RF18)
+            FeedbackJson = JsonSerializer.Serialize(correcao, JsonPadrao.Opcoes), // persistido integralmente (RF18)
             Data = _relogio.Agora,
         };
         _db.Tentativas.Add(tentativa);
@@ -251,7 +260,7 @@ public sealed class ExercicioService : IExercicioService
         return feedbacks
             .Select(f =>
             {
-                try { return JsonSerializer.Deserialize<CorrecaoIa>(f, JsonOpts); }
+                try { return JsonSerializer.Deserialize<CorrecaoIa>(f, JsonPadrao.Opcoes); }
                 catch (JsonException) { return null; }
             })
             .Where(c => c is not null)

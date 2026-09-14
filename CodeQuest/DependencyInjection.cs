@@ -49,6 +49,13 @@ public static class DependencyInjection
         services.AddScoped<ILojaService, LojaService>();
         services.AddScoped<IMissaoService, MissaoService>();
         services.AddScoped<IExercicioService, ExercicioService>();
+        services.AddScoped<IFocoService, FocoService>();
+        services.AddScoped<IArvoreService, ArvoreService>();
+        services.AddScoped<IMentorService, MentorService>();
+        services.AddScoped<ITesteService, TesteService>();
+        services.AddScoped<IBossService, BossService>();
+        services.AddScoped<ITopicoService, TopicoService>();
+        services.AddScoped<IDashboardService, DashboardService>();
 
         // IA (Gemini) — chave em Gemini:ApiKey (user secrets/env, RNF02). Sem timeout no HttpClient
         // de propósito: o dele cobriria a leitura do corpo inteiro e matava geração longa no meio.

@@ -5,6 +5,10 @@ public class Duvida
 {
     public int Id { get; set; }
 
+    /// <summary>Player dono da dúvida (multi-usuário).</summary>
+    public int PlayerId { get; set; }
+    public Player? Player { get; set; }
+
     public int? TopicoId { get; set; }
     public Topico? Topico { get; set; }
 

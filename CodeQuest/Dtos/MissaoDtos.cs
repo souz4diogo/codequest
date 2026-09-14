@@ -26,6 +26,9 @@ public sealed record CriarMissaoRequest(
 /// <summary>Faixa de XP permitida por esforço (RN04) — o front usa para montar o formulário e validar antes de enviar.</summary>
 public sealed record FaixaEsforcoDto(EsforcoMissao Esforco, int XpMinimo, int XpMaximo);
 
+/// <summary>Pedido de missão a partir de texto livre (RF10) — a IA estrutura, o backend valida o XP.</summary>
+public sealed record SugerirMissaoRequest(string Texto);
+
 /// <summary>Mapeamentos de missão → DTO.</summary>
 public static class MapeamentosMissaoDto
 {

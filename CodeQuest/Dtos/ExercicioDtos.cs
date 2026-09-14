@@ -7,6 +7,9 @@ namespace CodeQuest.Dtos;
 /// <summary>Pedido de geração de exercício (RF14). Enums viajam como string.</summary>
 public sealed record GerarExercicioRequest(int TopicoId, Dificuldade Dificuldade, FormatoExercicio Formato);
 
+/// <summary>Tópico disponível para gerar exercício — só os de módulos já liberados (RF06).</summary>
+public sealed record TopicoDto(int Id, string Nome, string ModuloNome, int NivelEstimado);
+
 /// <summary>
 /// Exercício exposto ao front: apenas o enunciado público (título, texto, starter, alternativas
 /// sem a correta, dicas). O gabarito NUNCA sai do backend antes da correção.
@@ -39,6 +42,9 @@ public sealed record CorrecaoDto(
 /// <summary>Mapeamentos de exercício → DTO.</summary>
 public static class MapeamentosExercicioDto
 {
+    public static TopicoDto ParaDto(this Topico t) =>
+        new(t.Id, t.Nome, t.Modulo.Nome, t.NivelEstimado);
+
     public static ExercicioDto ParaDto(this Exercicio e) =>
         new(e.Id, e.TopicoId, e.Dificuldade, e.Formato, e.EnunciadoJson, e.CriadoEm);
 

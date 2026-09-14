@@ -68,6 +68,13 @@ public class AppDbContext : DbContext
         model.Entity<SessaoFoco>().ToTable(t =>
             t.HasCheckConstraint("CK_SessaoFoco_Alvo", "num_nonnulls(\"ProjetoId\", \"TopicoId\") = 1"));
 
+        // ---- Teste aponta para tópico (RF17) OU módulo — boss fight (RF12/RN08) ----
+        model.Entity<Teste>().ToTable(t =>
+            t.HasCheckConstraint("CK_Teste_Alvo", "num_nonnulls(\"ModuloId\", \"TopicoId\") = 1"));
+        model.Entity<Teste>()
+            .HasOne(x => x.Modulo).WithMany()
+            .HasForeignKey(x => x.ModuloId).OnDelete(DeleteBehavior.Cascade);
+
         // ---- Usuario ↔ Player (1:1) e login único ----
         model.Entity<Usuario>().HasIndex(u => u.Login).IsUnique();
         model.Entity<Player>()

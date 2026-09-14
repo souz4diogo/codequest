@@ -19,11 +19,26 @@ export default function Nav() {
         <NavLink to="/" end style={estilo}>
           Painel
         </NavLink>
+        <NavLink to="/arvore" style={estilo}>
+          Árvore
+        </NavLink>
         <NavLink to="/missoes" style={estilo}>
           Missões
         </NavLink>
+        <NavLink to="/exercicio" style={estilo}>
+          Exercício
+        </NavLink>
+        <NavLink to="/testes" style={estilo}>
+          Testes
+        </NavLink>
+        <NavLink to="/foco" style={estilo}>
+          Foco
+        </NavLink>
         <NavLink to="/loja" style={estilo}>
           Loja
+        </NavLink>
+        <NavLink to="/mentor" style={estilo}>
+          Mentor
         </NavLink>
         <button className="btn btn-ghost" onClick={sair}>
           Sair

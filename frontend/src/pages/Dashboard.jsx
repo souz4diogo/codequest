@@ -1,16 +1,24 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
 import Nav from "../components/Nav.jsx";
+import AtividadeChart from "../components/AtividadeChart.jsx";
+import RadarChart from "../components/RadarChart.jsx";
 
-// Porta do Dashboard.razor: cards de nível/XP/gold/streak, barra de XP e os botões de teste de XP.
+// Porta do Dashboard.razor: cards de nível/XP/gold/streak, barra de XP, gráfico de atividade
+// (RF24) e radar de habilidades por módulo (RF08).
 export default function Dashboard() {
   const [player, setPlayer] = useState(null);
+  const [atividade, setAtividade] = useState(null);
+  const [radar, setRadar] = useState(null);
   const [ultimo, setUltimo] = useState(null);
   const [erro, setErro] = useState(null);
 
   async function carregar() {
     try {
-      setPlayer(await api.obterPlayer());
+      const [p, a, r] = await Promise.all([api.obterPlayer(), api.atividade(), api.radar()]);
+      setPlayer(p);
+      setAtividade(a);
+      setRadar(r);
     } catch (err) {
       setErro(err.message);
     }
@@ -92,6 +100,21 @@ export default function Dashboard() {
           {ultimo.subiuNivel && <strong> Subiu para o nível {ultimo.nivelAtual}! 🎉</strong>}
         </p>
       )}
+
+      <div className="grid grid-2">
+        <div className="card">
+          <div className="section-title" style={{ marginTop: 0 }}>
+            Atividade (30 dias)
+          </div>
+          {atividade ? <AtividadeChart dias={atividade} /> : <p className="muted">Carregando…</p>}
+        </div>
+        <div className="card" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div className="section-title" style={{ marginTop: 0, alignSelf: "flex-start" }}>
+            Radar de habilidades
+          </div>
+          {radar ? <RadarChart eixos={radar} /> : <p className="muted">Carregando…</p>}
+        </div>
+      </div>
 
       {erro && <p className="erro">{erro}</p>}
     </div>

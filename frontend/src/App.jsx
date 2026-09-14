@@ -6,6 +6,11 @@ import Registrar from "./pages/Registrar.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Missoes from "./pages/Missoes.jsx";
 import Loja from "./pages/Loja.jsx";
+import Exercicio from "./pages/Exercicio.jsx";
+import Foco from "./pages/Foco.jsx";
+import Arvore from "./pages/Arvore.jsx";
+import Mentor from "./pages/Mentor.jsx";
+import Testes from "./pages/Testes.jsx";
 
 // Rotas da SPA. Login/registrar são públicos; painel, missões e loja exigem sessão.
 export default function App() {
@@ -36,6 +41,46 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Loja />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/exercicio"
+            element={
+              <ProtectedRoute>
+                <Exercicio />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/foco"
+            element={
+              <ProtectedRoute>
+                <Foco />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/arvore"
+            element={
+              <ProtectedRoute>
+                <Arvore />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentor"
+            element={
+              <ProtectedRoute>
+                <Mentor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/testes"
+            element={
+              <ProtectedRoute>
+                <Testes />
               </ProtectedRoute>
             }
           />

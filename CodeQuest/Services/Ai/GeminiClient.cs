@@ -129,7 +129,7 @@ public sealed class GeminiClient : IGeminiClient
             }
         }
 
-        throw new IaIndisponivelException("Mentor IA indisponível no momento.", ultimaFalha);
+        throw new IaIndisponivelException("IA indisponível no momento.", ultimaFalha);
     }
 
     /// <summary>

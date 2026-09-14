@@ -36,6 +36,21 @@ public sealed record ExercicioIa(
 public sealed record ProblemaIa(string Trecho, string Explicacao, string Correcao);
 
 /// <summary>Parecer da correção (seção 5 do motor-ia). A nota é da IA; aprovação e XP são do backend.</summary>
+/// <summary>Resposta do mentor a uma dúvida (RF22), em Markdown.</summary>
+public sealed record RespostaMentorIa(string Resposta);
+
+/// <summary>Missão estruturada pela IA a partir de texto livre do aluno (RF10).</summary>
+public sealed record MissaoSugeridaIa(string Titulo, string Descricao, string Esforco);
+
+/// <summary>Uma questão de múltipla escolha de um teste de avaliação ou boss fight (RF17/RF12).</summary>
+public sealed record QuestaoTesteIa(
+    string Conceito,
+    string Enunciado,
+    IReadOnlyList<AlternativaIa> Alternativas);
+
+/// <summary>Teste completo: 5–10 questões (RF17) ou o conjunto de um boss fight (RN08).</summary>
+public sealed record TesteIa(IReadOnlyList<QuestaoTesteIa> Questoes);
+
 public sealed record CorrecaoIa(
     int Nota,
     bool Aprovado,

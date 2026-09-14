@@ -50,6 +50,14 @@ export default function Missoes() {
     <div className="content">
       <Nav />
 
+      <FormSugerirMissao
+        onCriada={() => {
+          setFeedback("A IA sugeriu uma missão!");
+          carregar();
+        }}
+        onErro={setErro}
+      />
+
       <FormNovaMissao
         faixas={faixas}
         onCriada={() => {
@@ -78,6 +86,11 @@ export default function Missoes() {
   );
 }
 
+const ROTULOS_TIPO = {
+  Diaria: "🎯 Diária",
+  SugeridaIA: "✨ Sugerida pela IA",
+};
+
 function CardMissao({ missao, onConcluir }) {
   const encerrada = missao.status === "Concluida" || missao.status === "Expirada";
   return (
@@ -86,6 +99,11 @@ function CardMissao({ missao, onConcluir }) {
         <strong>{missao.titulo}</strong>
         <span className="muted">{rotuloStatus(missao.status)}</span>
       </div>
+      {ROTULOS_TIPO[missao.tipo] && (
+        <span className="muted" style={{ fontSize: 12 }}>
+          {ROTULOS_TIPO[missao.tipo]}
+        </span>
+      )}
       {missao.descricao && <p className="muted">{missao.descricao}</p>}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
         <span className="muted">
@@ -109,6 +127,47 @@ function rotuloStatus(status) {
     Expirada: "⌛ Expirada",
   };
   return mapa[status] ?? status;
+}
+
+function FormSugerirMissao({ onCriada, onErro }) {
+  const [texto, setTexto] = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviar(e) {
+    e.preventDefault();
+    onErro(null);
+    if (!texto.trim()) return;
+    setEnviando(true);
+    try {
+      await api.sugerirMissao(texto.trim());
+      setTexto("");
+      onCriada();
+    } catch (err) {
+      onErro(err.message);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <form className="card" onSubmit={enviar}>
+      <div className="section-title" style={{ marginTop: 0 }}>
+        Pedir à IA
+      </div>
+      <div className="acoes" style={{ flexWrap: "wrap" }}>
+        <input
+          className="campo"
+          placeholder='Ex.: "quero praticar herança"'
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          style={{ flex: 1, minWidth: 220 }}
+        />
+        <button className="btn btn-primary" disabled={enviando || !texto.trim()}>
+          {enviando ? "Pensando…" : "Sugerir missão"}
+        </button>
+      </div>
+    </form>
+  );
 }
 
 function FormNovaMissao({ faixas, onCriada, onErro }) {
@@ -160,21 +219,21 @@ function FormNovaMissao({ faixas, onCriada, onErro }) {
         Nova missão
       </div>
       <input
-        className="css"
+        className="campo"
         placeholder="Título"
         value={titulo}
         onChange={(e) => setTitulo(e.target.value)}
-        style={campo}
+        style={{ marginTop: 8 }}
       />
       <input
-        className="css"
+        className="campo"
         placeholder="Descrição (opcional)"
         value={descricao}
         onChange={(e) => setDescricao(e.target.value)}
-        style={campo}
+        style={{ marginTop: 8 }}
       />
       <div className="acoes" style={{ marginTop: 8, flexWrap: "wrap" }}>
-        <select value={esforco} onChange={(e) => trocarEsforco(e.target.value)} style={campo}>
+        <select className="campo" value={esforco} onChange={(e) => trocarEsforco(e.target.value)}>
           {faixas.map((f) => (
             <option key={f.esforco} value={f.esforco}>
               {f.esforco} ({f.xpMinimo}–{f.xpMaximo} XP)
@@ -182,10 +241,11 @@ function FormNovaMissao({ faixas, onCriada, onErro }) {
           ))}
         </select>
         <input
+          className="campo"
           type="number"
           value={xp}
           onChange={(e) => setXp(e.target.value)}
-          style={{ ...campo, width: 100 }}
+          style={{ width: 100 }}
           min={faixa?.xpMinimo}
           max={faixa?.xpMaximo}
         />
@@ -200,11 +260,3 @@ function FormNovaMissao({ faixas, onCriada, onErro }) {
   );
 }
 
-const campo = {
-  padding: "10px 12px",
-  borderRadius: "var(--radius)",
-  border: "1px solid var(--border)",
-  background: "var(--bg-surface)",
-  color: "var(--text-primary)",
-  marginTop: 8,
-};
