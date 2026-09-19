@@ -27,6 +27,10 @@ builder.Services.AddCors(o => o.AddPolicy(CorsFront, p => p
 // Serviços do CodeQuest (DbContext, regras, serviços de aplicação, seed).
 builder.Services.AddCodeQuest(builder.Configuration);
 
+// Health check simples (só confirma que o app subiu e respondeu) — o compose usa isso pra
+// só liberar o frontend depois que a API estiver de pé de verdade, não só "iniciada".
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
 // Aplica migrations e semeia dados iniciais no boot.
@@ -48,8 +52,10 @@ app.UseCors(CorsFront);
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Endpoints REST da API (consumidos pelo React). O logout é client-side: a SPA descarta o JWT.
+// Endpoints REST da API (consumidos pelo React). Logout revoga o refresh token no servidor
+// (AuthController); o access token em si expira sozinho — a SPA só descarta os dois do storage.
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
 

@@ -51,7 +51,8 @@ services:
       # 3000 no host para não conflitar com o Vite dev server (5173).
       - "3000:80"
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
 volumes:
   pgdata:
