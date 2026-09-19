@@ -2,6 +2,7 @@ using CodeQuest.Auth;
 using CodeQuest.Dtos;
 using CodeQuest.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CodeQuest.Controllers;
 
@@ -26,6 +27,7 @@ public sealed class AuthController : ControllerBase
     }
 
     [HttpPost("registrar")]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<TokenResponse>> Registrar(RegistrarRequest req, CancellationToken ct)
     {
         var resultado = await _auth.RegistrarAsync(req.Login, req.Senha, ct);
@@ -36,6 +38,7 @@ public sealed class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<TokenResponse>> Login(LoginRequest req, CancellationToken ct)
     {
         var resultado = await _auth.ValidarCredenciaisAsync(req.Login, req.Senha, ct);

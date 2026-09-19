@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="CodeQuest.IntegrationTests/CodeQuest.IntegrationTests.csproj" />
+  <Project Path="CodeQuest.Tests/CodeQuest.Tests.csproj" />
+  <Project Path="CodeQuest/CodeQuest.csproj" />
+</Solution>

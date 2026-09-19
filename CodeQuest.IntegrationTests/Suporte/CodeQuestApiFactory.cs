@@ -38,10 +38,16 @@ public sealed class CodeQuestApiFactory : WebApplicationFactory<Program>, IAsync
         // os testes escreviam dados de teste no banco real (incidente descoberto em 2026-09-14).
         Environment.SetEnvironmentVariable("ConnectionStrings__CodeQuest", "Host=placeholder-nao-inicializado;Port=1;Database=x;Username=x;Password=x");
         Environment.SetEnvironmentVariable("Jwt__Secret", "segredo-de-teste-para-integracao-com-32-chars+");
+
+        // Program.cs lê "RateLimiting:LoginPorMinuto" com builder.Configuration.GetValue direto no
+        // topo do arquivo — síncrono, antes de qualquer callback de ConfigureAppConfiguration rodar.
+        // Só variável de ambiente setada ANTES do builder (mesma razão do Jwt__Secret acima) chega
+        // a tempo. Sem isso, o limite de produção (5/min) travaria o suite inteiro: o
+        // WebApplicationFactory não expõe IP real, então todo teste cai no mesmo balde do limiter.
+        Environment.SetEnvironmentVariable("RateLimiting__LoginPorMinuto", "100000");
     }
 
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:17")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17")
         .WithDatabase("codequest_test")
         .WithUsername("codequest")
         .WithPassword("codequest")

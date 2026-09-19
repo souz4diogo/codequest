@@ -69,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<IServicoAutenticacao, ServicoAutenticacao>();
         services.AddScoped<IServicoRefreshToken, ServicoRefreshToken>();
         services.AddScoped<IUsuarioAtual, UsuarioAtual>();
+        services.AddHostedService<LimpezaRefreshTokenService>();
 
         // Seed
         services.AddScoped<ISeeder, DatabaseSeeder>();

@@ -1,5 +1,8 @@
+using System.Net;
+using System.Threading.RateLimiting;
 using CodeQuest;
 using CodeQuest.Data;
+using Microsoft.AspNetCore.RateLimiting;
 
 // Carrega o .env (na raiz do repo) para variáveis de ambiente antes de montar a configuração.
 // Em produção/Docker as variáveis já vêm do ambiente, então a ausência do arquivo é ignorada.
@@ -31,6 +34,33 @@ builder.Services.AddCodeQuest(builder.Configuration);
 // só liberar o frontend depois que a API estiver de pé de verdade, não só "iniciada".
 builder.Services.AddHealthChecks();
 
+// Rate limit de login/registro por IP — só existe pra dificultar força bruta de senha;
+// não protege nada mais no resto da API (o JWT/refresh token já cuida disso). Limite
+// configurável (não fixo em 5) porque o WebApplicationFactory dos testes de integração não
+// expõe IP real — todo request de teste cai no mesmo balde "desconhecido", e testes que
+// registram/logam muitas vezes em sequência estourariam um limite de produção em segundos.
+var limitePorMinuto = builder.Configuration.GetValue("RateLimiting:LoginPorMinuto", 5);
+builder.Services.AddRateLimiter(o =>
+{
+    // Particiona por IP explicitamente: AddFixedWindowLimiter sozinho compartilharia um único
+    // balde entre TODOS os clientes, travando o login de todo mundo depois de só 5 tentativas.
+    o.AddPolicy("auth", contexto => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: contexto.Connection.RemoteIpAddress?.ToString() ?? "desconhecido",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = limitePorMinuto,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+    o.OnRejected = async (contexto, ct) =>
+    {
+        contexto.HttpContext.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
+        contexto.HttpContext.Response.ContentType = "application/json";
+        await contexto.HttpContext.Response.WriteAsJsonAsync(
+            new { erro = "Muitas tentativas. Aguarde um minuto e tente de novo." }, ct);
+    };
+});
+
 var app = builder.Build();
 
 // Aplica migrations e semeia dados iniciais no boot.
@@ -41,6 +71,17 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
+
+// Rede de segurança: qualquer exceção não tratada por um controller vira um 500 no mesmo
+// formato { erro } que o resto da API usa, em vez da página de erro padrão do ASP.NET
+// (que em produção não devolve nada — só um 500 vazio, pior pra depurar do lado do front).
+app.UseExceptionHandler(tratador => tratador.Run(async contexto =>
+{
+    contexto.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+    contexto.Response.ContentType = "application/json";
+    await contexto.Response.WriteAsJsonAsync(new { erro = "Erro inesperado no servidor." });
+}));
+
 if (!app.Environment.IsDevelopment())
 {
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
@@ -49,6 +90,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors(CorsFront);
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
