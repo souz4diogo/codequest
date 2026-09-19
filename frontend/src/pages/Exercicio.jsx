@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
-import Nav from "../components/Nav.jsx";
+import Carregando from "../components/Carregando.jsx";
+import EstadoVazio from "../components/EstadoVazio.jsx";
+import {
+  IconCode,
+  IconLoader,
+  IconInbox,
+  IconCheckCircle,
+  IconXCircle,
+  IconChevronRight,
+} from "../components/icons.jsx";
 
 const DIFICULDADES = ["Easy", "Medium", "Hard", "Expert"];
 const FORMATOS = [
@@ -24,22 +33,23 @@ export default function Exercicio() {
 
   if (erro && !topicos)
     return (
-      <div className="content">
-        <Nav />
+      <div className="page">
         <p className="erro">{erro}</p>
       </div>
     );
 
   return (
-    <div className="content">
-      <Nav />
-      <div className="section-title" style={{ marginTop: 0 }}>
-        Exercício
+    <div className="page">
+      <div className="page-header">
+        <h1>Exercício</h1>
+        <p>Gerado pela IA na hora, corrigido pela IA quando você responde.</p>
       </div>
       {!topicos ? (
-        <p className="muted">Carregando…</p>
+        <Carregando />
       ) : topicos.length === 0 ? (
-        <p className="muted">Nenhum tópico liberado ainda.</p>
+        <EstadoVazio icon={IconInbox}>
+          <p>Nenhum tópico liberado ainda.</p>
+        </EstadoVazio>
       ) : (
         <PainelExercicio topicos={topicos} />
       )}
@@ -93,7 +103,7 @@ function PainelExercicio({ topicos }) {
   return (
     <>
       <form className="card" onSubmit={(e) => e.preventDefault()}>
-        <div className="acoes" style={{ flexWrap: "wrap" }}>
+        <div className="form-row">
           <select className="campo" value={topicoId} onChange={(e) => setTopicoId(Number(e.target.value))}>
             {topicos.map((t) => (
               <option key={t.id} value={t.id}>
@@ -116,6 +126,7 @@ function PainelExercicio({ topicos }) {
             ))}
           </select>
           <button className="btn btn-primary" onClick={gerar} disabled={gerando}>
+            {gerando ? <IconLoader size={16} /> : <IconCode size={16} />}
             {gerando ? "Gerando…" : exercicio ? "Gerar outro" : "Gerar exercício"}
           </button>
         </div>
@@ -124,24 +135,22 @@ function PainelExercicio({ topicos }) {
       {erro && <p className="erro">{erro}</p>}
 
       {enunciado && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <strong>{enunciado.titulo}</strong>
+        <div className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <strong style={{ fontSize: 16 }}>{enunciado.titulo}</strong>
           <p style={{ whiteSpace: "pre-wrap" }}>{enunciado.enunciado}</p>
 
           {(enunciado.codigoPartida || enunciado.codigoApresentado) && (
-            <pre className="card" style={{ background: "var(--bg-surface)", overflowX: "auto" }}>
-              <code>{enunciado.codigoPartida ?? enunciado.codigoApresentado}</code>
+            <pre style={{ background: "var(--bg-base-alt)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 14, overflowX: "auto" }}>
+              <code className="mono">{enunciado.codigoPartida ?? enunciado.codigoApresentado}</code>
             </pre>
           )}
 
-          {enunciado.comportamentoEsperado && (
-            <p className="muted">{enunciado.comportamentoEsperado}</p>
-          )}
+          {enunciado.comportamentoEsperado && <p className="muted">{enunciado.comportamentoEsperado}</p>}
 
           {enunciado.casosDeTeste?.length > 0 && (
-            <ul className="muted">
+            <ul style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {enunciado.casosDeTeste.map((c, i) => (
-                <li key={i}>
+                <li key={i} className="muted mono" style={{ fontSize: 13 }}>
                   {c.entrada} → {c.saidaEsperada}
                 </li>
               ))}
@@ -149,9 +158,11 @@ function PainelExercicio({ topicos }) {
           )}
 
           {enunciado.dicas?.length > 0 && (
-            <details style={{ marginTop: 8 }}>
-              <summary className="muted">Dicas</summary>
-              <ul className="muted">
+            <details>
+              <summary className="muted" style={{ cursor: "pointer" }}>
+                Dicas
+              </summary>
+              <ul className="muted" style={{ marginTop: 8, paddingLeft: 18 }}>
                 {enunciado.dicas.map((d, i) => (
                   <li key={i}>{d}</li>
                 ))}
@@ -160,7 +171,7 @@ function PainelExercicio({ topicos }) {
           )}
 
           {!correcao && (
-            <form onSubmit={enviar} style={{ marginTop: 16 }}>
+            <form onSubmit={enviar} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {formato === "MultiplaEscolha" ? (
                 <div className="grid">
                   {enunciado.alternativas.map((alt, i) => {
@@ -170,20 +181,10 @@ function PainelExercicio({ topicos }) {
                       <button
                         type="button"
                         key={i}
-                        className="opt"
+                        className={`opt${selecionada ? " selecionada" : ""}`}
                         onClick={() => setResposta(alt.texto)}
-                        style={{
-                          display: "flex",
-                          gap: 10,
-                          alignItems: "center",
-                          textAlign: "left",
-                          border: selecionada ? "1px solid var(--info)" : "1px solid var(--border)",
-                          borderRadius: "var(--radius)",
-                          padding: "12px 14px",
-                          background: "var(--bg-surface)",
-                        }}
                       >
-                        <span className="badge badge-tipo">{letra}</span>
+                        <span className="badge-letra">{letra}</span>
                         <span>{alt.texto}</span>
                       </button>
                     );
@@ -191,16 +192,18 @@ function PainelExercicio({ topicos }) {
                 </div>
               ) : (
                 <textarea
-                  className="campo"
+                  className="campo mono"
                   value={resposta}
                   onChange={(e) => setResposta(e.target.value)}
                   rows={10}
                   placeholder="Digite sua resposta…"
-                  style={{ width: "100%", fontFamily: "var(--font-code)", resize: "vertical" }}
+                  style={{ width: "100%", resize: "vertical" }}
                 />
               )}
-              <button className="btn btn-primary" style={{ marginTop: 12 }} disabled={enviando || !resposta.trim()}>
+              <button className="btn btn-primary" disabled={enviando || !resposta.trim()} style={{ alignSelf: "flex-start" }}>
+                {enviando && <IconLoader size={16} />}
                 {enviando ? "Enviando…" : "Enviar resposta"}
+                {!enviando && <IconChevronRight size={16} />}
               </button>
             </form>
           )}
@@ -213,17 +216,22 @@ function PainelExercicio({ topicos }) {
 }
 
 function ResultadoCorrecao({ correcao }) {
+  const cor = correcao.aprovado ? "var(--success)" : "var(--danger)";
   return (
-    <div className={`card ${correcao.aprovado ? "" : "erro-card"}`} style={{ marginTop: 16 }}>
-      <strong style={{ color: correcao.aprovado ? "var(--success)" : "var(--medium)" }}>
-        {correcao.aprovado ? "Aprovado!" : "Quase — vamos revisar"} · Nota {correcao.nota}
-      </strong>
+    <div className="card" style={{ display: "flex", flexDirection: "column", gap: 10, borderColor: correcao.aprovado ? "#3fb95055" : "#f8514955" }}>
+      <div className="rotulo-e-icone" style={{ color: cor }}>
+        {correcao.aprovado ? <IconCheckCircle size={20} /> : <IconXCircle size={20} />}
+        <strong>{correcao.aprovado ? "Aprovado!" : "Quase — vamos revisar"} · Nota {correcao.nota}</strong>
+      </div>
 
       {correcao.problemas?.length > 0 && (
-        <ul style={{ marginTop: 8 }}>
+        <ul style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {correcao.problemas.map((p, i) => (
-            <li key={i} style={{ marginBottom: 6 }}>
-              <code style={{ fontFamily: "var(--font-code)" }}>{p.trecho}</code>: {p.explicacao}
+            <li key={i}>
+              <code className="mono" style={{ background: "var(--bg-base-alt)", padding: "2px 6px", borderRadius: 4 }}>
+                {p.trecho}
+              </code>
+              : {p.explicacao}
               {p.correcao && <div className="muted">Correção: {p.correcao}</div>}
             </li>
           ))}
@@ -239,14 +247,11 @@ function ResultadoCorrecao({ correcao }) {
       {correcao.recompensa && (
         <p className="feedback">
           +{correcao.recompensa.xpCreditado} XP, +{correcao.recompensa.goldGanho} gold.
-          {correcao.recompensa.subiuNivel ? ` Subiu para o nível ${correcao.recompensa.nivelAtual}! 🎉` : ""}
+          {correcao.recompensa.subiuNivel ? ` Subiu para o nível ${correcao.recompensa.nivelAtual}!` : ""}
         </p>
       )}
 
-      {correcao.revisaoAgendadaPara && (
-        <p className="muted">Revisão agendada para {correcao.revisaoAgendadaPara}.</p>
-      )}
+      {correcao.revisaoAgendadaPara && <p className="muted">Revisão agendada para {correcao.revisaoAgendadaPara}.</p>}
     </div>
   );
 }
-

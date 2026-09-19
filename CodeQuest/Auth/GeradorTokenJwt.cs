@@ -6,7 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace CodeQuest.Auth;
 
 /// <summary>Configuração de emissão/validação dos tokens JWT (lida da config em <see cref="DependencyInjection"/>).</summary>
-public sealed record OpcoesJwt(string Secret, string Issuer, string Audience, int ExpiraEmMinutos);
+public sealed record OpcoesJwt(string Secret, string Issuer, string Audience, int ExpiraEmMinutos, int RefreshExpiraEmDias);
 
 /// <summary>Token assinado + o instante em que expira (o front usa a expiração para saber quando renovar/deslogar).</summary>
 public sealed record TokenGerado(string Token, DateTime ExpiraEm);

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
-import Nav from "../components/Nav.jsx";
+import Carregando from "../components/Carregando.jsx";
+import EstadoVazio from "../components/EstadoVazio.jsx";
+import { IconCoins, IconShoppingBag, IconLoader, IconInbox } from "../components/icons.jsx";
 
 // Loja (RF20): lista os itens ativos e permite comprar. O gold é autoridade do backend (RN09) —
 // aqui só mostramos o saldo devolvido pela compra e desabilitamos o que o jogador não pode pagar.
@@ -41,13 +43,19 @@ export default function Loja() {
   }
 
   return (
-    <div className="content">
-      <Nav />
+    <div className="page">
+      <div className="page-header">
+        <h1>Loja</h1>
+        <p>Troque gold por descanso — sem culpa.</p>
+      </div>
 
-      <section className="card hero">
+      <section className="card hero-card">
+        <span className="icon-wrap" style={{ width: 56, height: 56, borderRadius: 16, background: "var(--gold-soft)", color: "var(--gold)" }}>
+          <IconCoins size={26} />
+        </span>
         <div style={{ flex: 1 }}>
           <div className="muted">Seu saldo</div>
-          <div className="display" style={{ fontSize: 28, color: "var(--gold)" }}>
+          <div className="display" style={{ fontSize: 30, color: "var(--gold)" }}>
             {player ? `${player.gold} gold` : "…"}
           </div>
         </div>
@@ -56,27 +64,35 @@ export default function Loja() {
       {feedback && <p className="feedback">{feedback}</p>}
       {erro && <p className="erro">{erro}</p>}
 
-      <div className="section-title">Itens disponíveis</div>
+      <div className="section-title">
+        <IconShoppingBag size={16} /> Itens disponíveis
+      </div>
       {!itens ? (
-        <p className="muted">Carregando…</p>
+        <Carregando />
       ) : itens.length === 0 ? (
-        <p className="muted">Nenhum item à venda no momento.</p>
+        <EstadoVazio icon={IconInbox}>
+          <p>Nenhum item à venda no momento.</p>
+        </EstadoVazio>
       ) : (
         <div className="grid grid-4">
           {itens.map((item) => {
             const semGold = player ? player.gold < item.custoGold : true;
             return (
-              <div className="card stat" key={item.id}>
-                <strong>{item.nome}</strong>
-                <span className="muted" style={{ color: "var(--gold)" }}>
-                  {item.custoGold} gold
+              <div className="card stat-card" key={item.id}>
+                <span className="icon-wrap" style={{ background: "var(--gold-soft)", color: "var(--gold)" }}>
+                  <IconShoppingBag size={16} />
+                </span>
+                <strong style={{ fontSize: 15 }}>{item.nome}</strong>
+                <span className="rotulo-e-icone" style={{ color: "var(--gold)", fontSize: 13, fontWeight: 600 }}>
+                  <IconCoins size={14} /> {item.custoGold}
                 </span>
                 <button
-                  className="btn btn-primary btn-block"
+                  className="btn btn-gold btn-block"
                   disabled={semGold || comprando === item.id}
                   onClick={() => comprar(item)}
                   style={{ marginTop: 8 }}
                 >
+                  {comprando === item.id && <IconLoader size={15} />}
                   {comprando === item.id ? "Comprando…" : semGold ? "Gold insuficiente" : "Comprar"}
                 </button>
               </div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
+import { IconLoader } from "../components/icons.jsx";
 
 export default function Registrar() {
   const { registrar } = useAuth();
@@ -31,7 +32,7 @@ export default function Registrar() {
           <span className="mark">CQ</span>
           <span className="display">CodeQuest</span>
         </div>
-        <h1>Criar conta</h1>
+        <h1 className="display">Criar conta</h1>
 
         {erro && <p className="erro">{erro}</p>}
 
@@ -57,6 +58,7 @@ export default function Registrar() {
         </label>
 
         <button className="btn btn-primary btn-block" disabled={carregando}>
+          {carregando && <IconLoader size={16} />}
           {carregando ? "Criando…" : "Criar conta"}
         </button>
 

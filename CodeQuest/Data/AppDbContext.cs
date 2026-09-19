@@ -28,6 +28,7 @@ public class AppDbContext : DbContext
     public DbSet<ItemLoja> ItensLoja => Set<ItemLoja>();
     public DbSet<CompraLoja> ComprasLoja => Set<CompraLoja>();
     public DbSet<Duvida> Duvidas => Set<Duvida>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -77,6 +78,12 @@ public class AppDbContext : DbContext
 
         // ---- Usuario ↔ Player (1:1) e login único ----
         model.Entity<Usuario>().HasIndex(u => u.Login).IsUnique();
+
+        // ---- RefreshToken: busca por hash, apaga junto com o usuário ----
+        model.Entity<RefreshToken>().HasIndex(r => r.TokenHash).IsUnique();
+        model.Entity<RefreshToken>()
+            .HasOne(r => r.Usuario).WithMany()
+            .HasForeignKey(r => r.UsuarioId).OnDelete(DeleteBehavior.Cascade);
         model.Entity<Player>()
             .HasOne(p => p.Usuario).WithOne(u => u.Player)
             .HasForeignKey<Player>(p => p.UsuarioId)

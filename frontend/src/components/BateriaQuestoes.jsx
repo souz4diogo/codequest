@@ -13,10 +13,12 @@ export default function BateriaQuestoes({ questoes, onEnviar, enviando }) {
   }
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {questoes.map((q, qi) => (
-        <div className="card" key={qi} style={{ marginBottom: 12 }}>
-          <strong>{qi + 1}.</strong>
+        <div className="card" key={qi}>
+          <div className="rotulo-e-icone muted" style={{ marginBottom: 8 }}>
+            <span className="badge-letra">{qi + 1}</span>
+          </div>
           <div className="markdown">
             <Markdown>{q.enunciado}</Markdown>
           </div>
@@ -27,30 +29,10 @@ export default function BateriaQuestoes({ questoes, onEnviar, enviando }) {
                 <button
                   type="button"
                   key={ai}
+                  className={`opt${selecionada ? " selecionada" : ""}`}
                   onClick={() => escolher(qi, ai)}
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    alignItems: "center",
-                    textAlign: "left",
-                    border: selecionada ? "1px solid var(--info)" : "1px solid var(--border)",
-                    borderRadius: "var(--radius)",
-                    padding: "10px 14px",
-                    background: "var(--bg-surface)",
-                    color: "var(--text-primary)",
-                  }}
                 >
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 22,
-                      textAlign: "center",
-                      fontWeight: 700,
-                      color: selecionada ? "var(--info)" : "var(--text-muted)",
-                    }}
-                  >
-                    {String.fromCharCode(65 + ai)}
-                  </span>
+                  <span className="badge-letra">{String.fromCharCode(65 + ai)}</span>
                   <span>{texto}</span>
                 </button>
               );
@@ -58,11 +40,7 @@ export default function BateriaQuestoes({ questoes, onEnviar, enviando }) {
           </div>
         </div>
       ))}
-      <button
-        className="btn btn-primary"
-        disabled={!completo || enviando}
-        onClick={() => onEnviar(respostas)}
-      >
+      <button className="btn btn-primary" disabled={!completo || enviando} onClick={() => onEnviar(respostas)}>
         {enviando ? "Enviando…" : "Enviar respostas"}
       </button>
     </div>

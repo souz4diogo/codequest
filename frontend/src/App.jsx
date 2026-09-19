@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
+import Layout from "./components/Nav.jsx";
 import Login from "./pages/Login.jsx";
 import Registrar from "./pages/Registrar.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
@@ -11,8 +12,19 @@ import Foco from "./pages/Foco.jsx";
 import Arvore from "./pages/Arvore.jsx";
 import Mentor from "./pages/Mentor.jsx";
 import Testes from "./pages/Testes.jsx";
+import Relatorio from "./pages/Relatorio.jsx";
 
-// Rotas da SPA. Login/registrar são públicos; painel, missões e loja exigem sessão.
+// Envolve uma página protegida na sidebar/topbar persistente (Layout) — só um lugar define
+// a navegação, em vez de cada página renderizar a própria <Nav/> (regra: navigation-consistency).
+function Protegida({ children }) {
+  return (
+    <ProtectedRoute>
+      <Layout>{children}</Layout>
+    </ProtectedRoute>
+  );
+}
+
+// Rotas da SPA. Login/registrar são públicos; o resto exige sessão.
 export default function App() {
   return (
     <AuthProvider>
@@ -23,65 +35,73 @@ export default function App() {
           <Route
             path="/"
             element={
-              <ProtectedRoute>
+              <Protegida>
                 <Dashboard />
-              </ProtectedRoute>
+              </Protegida>
             }
           />
           <Route
             path="/missoes"
             element={
-              <ProtectedRoute>
+              <Protegida>
                 <Missoes />
-              </ProtectedRoute>
+              </Protegida>
             }
           />
           <Route
             path="/loja"
             element={
-              <ProtectedRoute>
+              <Protegida>
                 <Loja />
-              </ProtectedRoute>
+              </Protegida>
             }
           />
           <Route
             path="/exercicio"
             element={
-              <ProtectedRoute>
+              <Protegida>
                 <Exercicio />
-              </ProtectedRoute>
+              </Protegida>
             }
           />
           <Route
             path="/foco"
             element={
-              <ProtectedRoute>
+              <Protegida>
                 <Foco />
-              </ProtectedRoute>
+              </Protegida>
             }
           />
           <Route
             path="/arvore"
             element={
-              <ProtectedRoute>
+              <Protegida>
                 <Arvore />
-              </ProtectedRoute>
+              </Protegida>
             }
           />
           <Route
             path="/mentor"
             element={
-              <ProtectedRoute>
+              <Protegida>
                 <Mentor />
-              </ProtectedRoute>
+              </Protegida>
             }
           />
           <Route
             path="/testes"
             element={
-              <ProtectedRoute>
+              <Protegida>
                 <Testes />
-              </ProtectedRoute>
+              </Protegida>
+            }
+          />
+          <Route
+            path="/relatorio"
+            element={
+              <Protegida>
+                <Relatorio />
+              </Protegida>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />

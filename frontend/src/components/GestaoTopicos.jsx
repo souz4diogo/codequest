@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
+import Carregando from "./Carregando.jsx";
 
 // Gestão de tópicos de um módulo (RF05): criar, editar nome/prioridade e arquivar/desarquivar.
 export default function GestaoTopicos({ moduloId }) {
@@ -20,10 +21,10 @@ export default function GestaoTopicos({ moduloId }) {
   }, [moduloId]);
 
   if (erro) return <p className="erro">{erro}</p>;
-  if (!topicos) return <p className="muted">Carregando…</p>;
+  if (!topicos) return <Carregando tamanho={14} />;
 
   return (
-    <div>
+    <div style={{ marginTop: 8 }}>
       {topicos.map((t) => (
         <LinhaTopico key={t.id} moduloId={moduloId} topico={t} onMudou={carregar} />
       ))}
@@ -64,16 +65,7 @@ function LinhaTopico({ moduloId, topico, onMudou }) {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 0",
-        borderBottom: "1px solid var(--border)",
-        opacity: topico.arquivado ? 0.5 : 1,
-      }}
-    >
+    <div className={`list-row${topico.arquivado ? " arquivado" : ""}`}>
       {editando ? (
         <>
           <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} style={{ flex: 1 }} />
@@ -82,10 +74,10 @@ function LinhaTopico({ moduloId, topico, onMudou }) {
             <option value={2}>Normal</option>
             <option value={3}>Baixa</option>
           </select>
-          <button className="btn btn-primary" onClick={salvar} disabled={salvando || !nome.trim()}>
+          <button className="btn btn-primary btn-sm" onClick={salvar} disabled={salvando || !nome.trim()}>
             Salvar
           </button>
-          <button className="btn btn-ghost" onClick={() => setEditando(false)}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setEditando(false)}>
             Cancelar
           </button>
         </>
@@ -94,10 +86,10 @@ function LinhaTopico({ moduloId, topico, onMudou }) {
           <span style={{ flex: 1 }}>
             {topico.nome} <span className="muted">— nível {topico.nivelEstimado}</span>
           </span>
-          <button className="btn btn-ghost" onClick={() => setEditando(true)}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setEditando(true)}>
             Editar
           </button>
-          <button className="btn btn-ghost" onClick={alternarArquivado}>
+          <button className="btn btn-ghost btn-sm" onClick={alternarArquivado}>
             {topico.arquivado ? "Desarquivar" : "Arquivar"}
           </button>
         </>
@@ -128,20 +120,14 @@ function NovoTopico({ moduloId, onCriado, onErro }) {
   }
 
   return (
-    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-      <input
-        className="campo"
-        placeholder="Novo tópico"
-        value={nome}
-        onChange={(e) => setNome(e.target.value)}
-        style={{ flex: 1 }}
-      />
-      <select className="campo" value={prioridade} onChange={(e) => setPrioridade(e.target.value)}>
+    <div className="form-row" style={{ marginTop: 10 }}>
+      <input className="campo" placeholder="Novo tópico" value={nome} onChange={(e) => setNome(e.target.value)} />
+      <select className="campo" value={prioridade} onChange={(e) => setPrioridade(e.target.value)} style={{ flex: "0 0 auto" }}>
         <option value={1}>Alta</option>
         <option value={2}>Normal</option>
         <option value={3}>Baixa</option>
       </select>
-      <button className="btn btn-primary" onClick={criar} disabled={criando || !nome.trim()}>
+      <button className="btn btn-primary btn-sm" onClick={criar} disabled={criando || !nome.trim()}>
         Adicionar
       </button>
     </div>

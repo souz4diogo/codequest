@@ -139,6 +139,71 @@ public class AuthEPlayerTests
     }
 
     [Fact]
+    public async Task Refresh_TokenValido_DevolveNovoParEMantemAcessoAoPlayer()
+    {
+        var (_, tokenOriginal) = await _factory.RegistrarELogarAsync();
+
+        var cliente = _factory.CreateClient();
+        var resposta = await cliente.PostAsJsonAsync("/api/auth/refresh", new RefreshRequest(tokenOriginal.RefreshToken));
+        resposta.EnsureSuccessStatusCode();
+        var novoToken = await resposta.Content.ReadFromJsonAsync<TokenResponse>();
+
+        Assert.NotNull(novoToken);
+        Assert.Equal(tokenOriginal.PlayerId, novoToken!.PlayerId);
+        Assert.NotEqual(tokenOriginal.RefreshToken, novoToken.RefreshToken);
+
+        cliente.DefaultRequestHeaders.Authorization = new("Bearer", novoToken.Token);
+        var player = await cliente.GetAsync("/api/player");
+        Assert.True(player.IsSuccessStatusCode);
+    }
+
+    [Fact]
+    public async Task Refresh_TokenJaRotacionado_RetornaUnauthorized()
+    {
+        var (_, tokenOriginal) = await _factory.RegistrarELogarAsync();
+        var cliente = _factory.CreateClient();
+        await cliente.PostAsJsonAsync("/api/auth/refresh", new RefreshRequest(tokenOriginal.RefreshToken));
+
+        // Reapresentar o mesmo refresh token (já rotacionado) é sinal de replay — deve falhar.
+        var resposta = await cliente.PostAsJsonAsync("/api/auth/refresh", new RefreshRequest(tokenOriginal.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resposta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Refresh_TokenInexistente_RetornaUnauthorized()
+    {
+        var cliente = _factory.CreateClient();
+
+        var resposta = await cliente.PostAsJsonAsync("/api/auth/refresh", new RefreshRequest("token-que-nunca-existiu"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resposta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Logout_RevogaORefreshToken_ImpedeRenovacaoFutura()
+    {
+        var (_, token) = await _factory.RegistrarELogarAsync();
+        var cliente = _factory.CreateClient();
+
+        var logout = await cliente.PostAsJsonAsync("/api/auth/logout", new RefreshRequest(token.RefreshToken));
+        Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
+
+        var refresh = await cliente.PostAsJsonAsync("/api/auth/refresh", new RefreshRequest(token.RefreshToken));
+        Assert.Equal(HttpStatusCode.Unauthorized, refresh.StatusCode);
+    }
+
+    [Fact]
+    public async Task Logout_TokenDesconhecido_NaoFalha()
+    {
+        var cliente = _factory.CreateClient();
+
+        var resposta = await cliente.PostAsJsonAsync("/api/auth/logout", new RefreshRequest("token-que-nunca-existiu"));
+
+        Assert.Equal(HttpStatusCode.NoContent, resposta.StatusCode);
+    }
+
+    [Fact]
     public async Task DoisUsuarios_TemPlayersIndependentes()
     {
         var (clienteA, tokenA) = await _factory.RegistrarELogarAsync();

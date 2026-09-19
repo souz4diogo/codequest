@@ -1,8 +1,9 @@
-// Cliente HTTP central da API .NET. Injeta o Bearer, trata erros e centraliza o storage do token.
-// Decisão da fase 2: token em localStorage (simples; casa com o token-no-corpo da API, sem refresh
-// token ainda). Dá pra endurecer depois (memória + refresh cookie HttpOnly) sem mexer nas páginas.
+// Cliente HTTP central da API .NET. Injeta o Bearer, trata erros e centraliza o storage dos
+// tokens. Decisão da fase 2 mantida: tokens em localStorage (simples; casa com token-no-corpo
+// da API). O refresh token permite renovar sem novo login quando o access token expira/401.
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5289";
 const TOKEN_KEY = "codequest.token";
+const REFRESH_KEY = "codequest.refreshToken";
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -10,8 +11,16 @@ export function getToken() {
 export function setToken(token) {
   localStorage.setItem(TOKEN_KEY, token);
 }
+export function getRefreshToken() {
+  return localStorage.getItem(REFRESH_KEY);
+}
+export function setSessionTokens(token, refreshToken) {
+  setToken(token);
+  localStorage.setItem(REFRESH_KEY, refreshToken);
+}
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
 }
 
 /** Erro de API com o status HTTP e a mensagem amigável vinda do backend. */
@@ -22,14 +31,9 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, { method = "GET", body, auth = true } = {}) {
-  const headers = { "Content-Type": "application/json" };
-  const token = getToken();
-  if (auth && token) headers.Authorization = `Bearer ${token}`;
-
-  let resp;
+async function fazerFetch(path, { method, headers, body }) {
   try {
-    resp = await fetch(`${BASE_URL}${path}`, {
+    return await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -38,21 +42,60 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
     // fetch rejeita antes de qualquer resposta (rede caiu, CORS bloqueou, API fora do ar).
     throw new ApiError(0, "Não foi possível falar com o servidor. Verifique sua conexão e tente de novo.");
   }
+}
 
-  // Token inválido/expirado: limpa a sessão para o app voltar ao login.
+async function extrairCorpo(resp) {
+  const texto = await resp.text();
+  try {
+    return texto ? JSON.parse(texto) : null;
+  } catch {
+    return null; // Corpo não é JSON (ex.: erro 5xx cru do servidor).
+  }
+}
+
+// Evita renovar em paralelo quando vários requests em voo tomam 401 ao mesmo tempo: todos
+// esperam a mesma promessa de renovação em vez de gastar o refresh token (uso único) várias vezes.
+let renovacaoEmVoo = null;
+
+async function renovarSessao() {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  renovacaoEmVoo ??= (async () => {
+    const resp = await fazerFetch("/api/auth/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: { refreshToken },
+    });
+    if (!resp.ok) return false;
+
+    const dados = await extrairCorpo(resp);
+    setSessionTokens(dados.token, dados.refreshToken);
+    return true;
+  })().finally(() => {
+    renovacaoEmVoo = null;
+  });
+
+  return renovacaoEmVoo;
+}
+
+async function request(path, { method = "GET", body, auth = true, tentandoDeNovo = false } = {}) {
+  const headers = { "Content-Type": "application/json" };
+  const token = getToken();
+  if (auth && token) headers.Authorization = `Bearer ${token}`;
+
+  const resp = await fazerFetch(path, { method, headers, body });
+
+  // Access token inválido/expirado: tenta renovar uma vez com o refresh token antes de deslogar.
+  if (resp.status === 401 && auth && !tentandoDeNovo && (await renovarSessao())) {
+    return request(path, { method, body, auth, tentandoDeNovo: true });
+  }
   if (resp.status === 401) {
     clearToken();
     throw new ApiError(401, "Sessão expirada. Entre novamente.");
   }
 
-  const texto = await resp.text();
-  let dados = null;
-  try {
-    dados = texto ? JSON.parse(texto) : null;
-  } catch {
-    // Corpo não é JSON (ex.: erro 5xx cru do servidor) — segue com dados nulo.
-  }
-
+  const dados = await extrairCorpo(resp);
   if (!resp.ok) {
     throw new ApiError(resp.status, dados?.erro ?? "Erro inesperado na API.");
   }
@@ -64,8 +107,9 @@ export const api = {
     request("/api/auth/registrar", { method: "POST", body: { login, senha }, auth: false }),
   login: (login, senha) =>
     request("/api/auth/login", { method: "POST", body: { login, senha }, auth: false }),
+  logout: (refreshToken) =>
+    request("/api/auth/logout", { method: "POST", body: { refreshToken }, auth: false }),
   obterPlayer: () => request("/api/player"),
-  adicionarXp: (xpBase) => request("/api/player/xp", { method: "POST", body: { xpBase } }),
 
   // Missões (RF09–RF13)
   missoesDoDia: () => request("/api/missoes/dia"),

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
-import Nav from "../components/Nav.jsx";
 import BateriaQuestoes from "../components/BateriaQuestoes.jsx";
+import Carregando from "../components/Carregando.jsx";
+import EstadoVazio from "../components/EstadoVazio.jsx";
+import { IconClipboardCheck, IconLoader, IconInbox, IconCheckCircle, IconXCircle } from "../components/icons.jsx";
 
 const DIFICULDADES = ["Easy", "Medium", "Hard", "Expert"];
 
@@ -16,13 +18,21 @@ export default function Testes() {
   }, []);
 
   return (
-    <div className="content">
-      <Nav />
-      <div className="section-title" style={{ marginTop: 0 }}>
-        Teste de avaliação
+    <div className="page">
+      <div className="page-header">
+        <h1>Teste de avaliação</h1>
+        <p>Mede seu nível real no tópico e alimenta as missões seguintes com os gaps.</p>
       </div>
       {erro && !topicos && <p className="erro">{erro}</p>}
-      {!topicos ? <p className="muted">Carregando…</p> : <PainelTeste topicos={topicos} />}
+      {!topicos ? (
+        <Carregando />
+      ) : topicos.length === 0 ? (
+        <EstadoVazio icon={IconInbox}>
+          <p>Nenhum tópico liberado ainda.</p>
+        </EstadoVazio>
+      ) : (
+        <PainelTeste topicos={topicos} />
+      )}
     </div>
   );
 }
@@ -65,7 +75,7 @@ function PainelTeste({ topicos }) {
   return (
     <>
       <div className="card">
-        <div className="acoes" style={{ flexWrap: "wrap" }}>
+        <div className="form-row">
           <select className="campo" value={topicoId} onChange={(e) => setTopicoId(Number(e.target.value))}>
             {topicos.map((t) => (
               <option key={t.id} value={t.id}>
@@ -81,6 +91,7 @@ function PainelTeste({ topicos }) {
             ))}
           </select>
           <button className="btn btn-primary" onClick={iniciar} disabled={gerando}>
+            {gerando ? <IconLoader size={16} /> : <IconClipboardCheck size={16} />}
             {gerando ? "Gerando…" : teste ? "Gerar outro" : "Iniciar teste"}
           </button>
         </div>
@@ -88,23 +99,18 @@ function PainelTeste({ topicos }) {
 
       {erro && <p className="erro">{erro}</p>}
 
-      {teste && !correcao && (
-        <div style={{ marginTop: 16 }}>
-          <BateriaQuestoes questoes={teste.questoes} onEnviar={enviar} enviando={enviando} />
-        </div>
-      )}
+      {teste && !correcao && <BateriaQuestoes questoes={teste.questoes} onEnviar={enviar} enviando={enviando} />}
 
       {correcao && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <strong style={{ color: correcao.nota >= 70 ? "var(--success)" : "var(--medium)" }}>
-            Nota {correcao.nota}
-          </strong>
+        <div className="card" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="rotulo-e-icone" style={{ color: correcao.nota >= 70 ? "var(--success)" : "var(--danger)" }}>
+            {correcao.nota >= 70 ? <IconCheckCircle size={20} /> : <IconXCircle size={20} />}
+            <strong>Nota {correcao.nota}</strong>
+          </div>
           <p className="muted">
             {correcao.acertos.filter(Boolean).length} de {correcao.acertos.length} corretas.
           </p>
-          {correcao.gaps.length > 0 && (
-            <p className="muted">Gaps identificados: {correcao.gaps.join(", ")}</p>
-          )}
+          {correcao.gaps.length > 0 && <p className="muted">Gaps identificados: {correcao.gaps.join(", ")}</p>}
         </div>
       )}
     </>

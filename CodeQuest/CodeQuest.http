@@ -23,6 +23,24 @@ Content-Type: application/json
 
 ### Guarda o token do login acima para reusar nos endpoints protegidos.
 @token = {{login.response.body.token}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+### 2.1) Renova o par de tokens (rotação de uso único — o refreshToken acima só funciona 1x)
+# @name refresh
+POST {{host}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 2.2) Logout — revoga o refresh token no servidor (idempotente)
+POST {{host}}/api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
 
 ### 3) Player logado (protegido por JWT)
 GET {{host}}/api/player

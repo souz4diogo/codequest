@@ -1,6 +1,20 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
-import Nav from "../components/Nav.jsx";
+import Carregando from "../components/Carregando.jsx";
+import EstadoVazio from "../components/EstadoVazio.jsx";
+import {
+  IconTarget,
+  IconSparkles,
+  IconWand,
+  IconPlus,
+  IconLoader,
+  IconInbox,
+  IconClock,
+  IconPlayCircle,
+  IconCheckCircle,
+  IconXCircle,
+  IconCoins,
+} from "../components/icons.jsx";
 
 // Missões do dia (RF09–RF13): lista, criação manual com validação da faixa de XP (RN04) e conclusão.
 export default function Missoes() {
@@ -30,7 +44,7 @@ export default function Missoes() {
       const r = await api.concluirMissao(id);
       setFeedback(
         `+${r.xpCreditado} XP (base ${r.xpBase} × ${r.multiplicador.toFixed(1)}), +${r.goldGanho} gold.` +
-          (r.subiuNivel ? ` Subiu para o nível ${r.nivelAtual}! 🎉` : "")
+          (r.subiuNivel ? ` Subiu para o nível ${r.nivelAtual}!` : "")
       );
       await carregar();
     } catch (err) {
@@ -40,15 +54,17 @@ export default function Missoes() {
 
   if (erro && !missoes)
     return (
-      <div className="content">
-        <Nav />
+      <div className="page">
         <p className="erro">{erro}</p>
       </div>
     );
 
   return (
-    <div className="content">
-      <Nav />
+    <div className="page">
+      <div className="page-header">
+        <h1>Missões</h1>
+        <p>Complete o que der pra hoje — cada uma paga XP e gold ao concluir.</p>
+      </div>
 
       <FormSugerirMissao
         onCriada={() => {
@@ -70,13 +86,18 @@ export default function Missoes() {
       {feedback && <p className="feedback">{feedback}</p>}
       {erro && <p className="erro">{erro}</p>}
 
-      <div className="section-title">Missões de hoje</div>
+      <div className="section-title">
+        <IconTarget size={16} /> Missões de hoje
+      </div>
       {!missoes ? (
-        <p className="muted">Carregando…</p>
+        <Carregando />
       ) : missoes.length === 0 ? (
-        <p className="muted">Nenhuma missão para hoje. Crie uma acima. 👆</p>
+        <EstadoVazio icon={IconInbox}>
+          <p>Nenhuma missão para hoje.</p>
+          <p className="muted">Crie uma acima ou peça uma sugestão à IA.</p>
+        </EstadoVazio>
       ) : (
-        <div className="grid">
+        <div className="grid grid-2">
           {missoes.map((m) => (
             <CardMissao key={m.id} missao={m} onConcluir={() => concluir(m.id)} />
           ))}
@@ -86,47 +107,52 @@ export default function Missoes() {
   );
 }
 
-const ROTULOS_TIPO = {
-  Diaria: "🎯 Diária",
-  SugeridaIA: "✨ Sugerida pela IA",
+const TIPO_INFO = {
+  Diaria: { texto: "Diária", Icon: IconTarget },
+  SugeridaIA: { texto: "Sugerida pela IA", Icon: IconSparkles },
+};
+
+const STATUS_INFO = {
+  Pendente: { texto: "Pendente", Icon: IconClock, badge: "badge-neutro" },
+  EmAndamento: { texto: "Em andamento", Icon: IconPlayCircle, badge: "badge-info" },
+  Concluida: { texto: "Concluída", Icon: IconCheckCircle, badge: "badge-success" },
+  Expirada: { texto: "Expirada", Icon: IconXCircle, badge: "badge-danger" },
 };
 
 function CardMissao({ missao, onConcluir }) {
   const encerrada = missao.status === "Concluida" || missao.status === "Expirada";
+  const status = STATUS_INFO[missao.status] ?? STATUS_INFO.Pendente;
+  const tipo = TIPO_INFO[missao.tipo];
+
   return (
-    <div className="card">
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+    <div className="card card-interactive" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
         <strong>{missao.titulo}</strong>
-        <span className="muted">{rotuloStatus(missao.status)}</span>
+        <span className={`badge ${status.badge}`}>
+          <status.Icon /> {status.texto}
+        </span>
       </div>
-      {ROTULOS_TIPO[missao.tipo] && (
-        <span className="muted" style={{ fontSize: 12 }}>
-          {ROTULOS_TIPO[missao.tipo]}
+      {tipo && (
+        <span className="badge badge-primary" style={{ alignSelf: "flex-start" }}>
+          <tipo.Icon /> {tipo.texto}
         </span>
       )}
       {missao.descricao && <p className="muted">{missao.descricao}</p>}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-        <span className="muted">
-          {missao.xpRecompensa} XP · <span style={{ color: "var(--gold)" }}>{missao.goldRecompensa} gold</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+        <span className="rotulo-e-icone muted">
+          {missao.xpRecompensa} XP ·{" "}
+          <span className="rotulo-e-icone" style={{ color: "var(--gold)" }}>
+            <IconCoins size={14} /> {missao.goldRecompensa}
+          </span>
         </span>
         {!encerrada && (
-          <button className="btn btn-primary" onClick={onConcluir}>
+          <button className="btn btn-primary btn-sm" onClick={onConcluir}>
             Concluir
           </button>
         )}
       </div>
     </div>
   );
-}
-
-function rotuloStatus(status) {
-  const mapa = {
-    Pendente: "⏳ Pendente",
-    EmAndamento: "▶️ Em andamento",
-    Concluida: "✅ Concluída",
-    Expirada: "⌛ Expirada",
-  };
-  return mapa[status] ?? status;
 }
 
 function FormSugerirMissao({ onCriada, onErro }) {
@@ -152,17 +178,17 @@ function FormSugerirMissao({ onCriada, onErro }) {
   return (
     <form className="card" onSubmit={enviar}>
       <div className="section-title" style={{ marginTop: 0 }}>
-        Pedir à IA
+        <IconWand size={16} /> Pedir à IA
       </div>
-      <div className="acoes" style={{ flexWrap: "wrap" }}>
+      <div className="form-row" style={{ marginTop: 10 }}>
         <input
           className="campo"
           placeholder='Ex.: "quero praticar herança"'
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          style={{ flex: 1, minWidth: 220 }}
         />
         <button className="btn btn-primary" disabled={enviando || !texto.trim()}>
+          {enviando ? <IconLoader size={16} /> : <IconSparkles size={16} />}
           {enviando ? "Pensando…" : "Sugerir missão"}
         </button>
       </div>
@@ -216,47 +242,43 @@ function FormNovaMissao({ faixas, onCriada, onErro }) {
   return (
     <form className="card" onSubmit={enviar}>
       <div className="section-title" style={{ marginTop: 0 }}>
-        Nova missão
+        <IconPlus size={16} /> Nova missão
       </div>
-      <input
-        className="campo"
-        placeholder="Título"
-        value={titulo}
-        onChange={(e) => setTitulo(e.target.value)}
-        style={{ marginTop: 8 }}
-      />
-      <input
-        className="campo"
-        placeholder="Descrição (opcional)"
-        value={descricao}
-        onChange={(e) => setDescricao(e.target.value)}
-        style={{ marginTop: 8 }}
-      />
-      <div className="acoes" style={{ marginTop: 8, flexWrap: "wrap" }}>
-        <select className="campo" value={esforco} onChange={(e) => trocarEsforco(e.target.value)}>
-          {faixas.map((f) => (
-            <option key={f.esforco} value={f.esforco}>
-              {f.esforco} ({f.xpMinimo}–{f.xpMaximo} XP)
-            </option>
-          ))}
-        </select>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+        <input className="campo" placeholder="Título" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
         <input
           className="campo"
-          type="number"
-          value={xp}
-          onChange={(e) => setXp(e.target.value)}
-          style={{ width: 100 }}
-          min={faixa?.xpMinimo}
-          max={faixa?.xpMaximo}
+          placeholder="Descrição (opcional)"
+          value={descricao}
+          onChange={(e) => setDescricao(e.target.value)}
         />
-        <button className="btn btn-primary" disabled={enviando || !titulo.trim() || !xpValido}>
-          Criar
-        </button>
+        <div className="form-row">
+          <select className="campo" value={esforco} onChange={(e) => trocarEsforco(e.target.value)}>
+            {faixas.map((f) => (
+              <option key={f.esforco} value={f.esforco}>
+                {f.esforco} ({f.xpMinimo}–{f.xpMaximo} XP)
+              </option>
+            ))}
+          </select>
+          <input
+            className="campo"
+            type="number"
+            value={xp}
+            onChange={(e) => setXp(e.target.value)}
+            style={{ maxWidth: 110 }}
+            min={faixa?.xpMinimo}
+            max={faixa?.xpMaximo}
+          />
+          <button className="btn btn-primary" disabled={enviando || !titulo.trim() || !xpValido}>
+            Criar
+          </button>
+        </div>
+        {faixa && !xpValido && (
+          <p className="muted">
+            XP precisa ficar entre {faixa.xpMinimo} e {faixa.xpMaximo} para esforço {faixa.esforco}.
+          </p>
+        )}
       </div>
-      {faixa && !xpValido && (
-        <p className="muted">XP precisa ficar entre {faixa.xpMinimo} e {faixa.xpMaximo} para esforço {faixa.esforco}.</p>
-      )}
     </form>
   );
 }
-

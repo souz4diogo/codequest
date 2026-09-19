@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddAutenticacaoCodeQuest(config);
         services.AddSingleton<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
         services.AddScoped<IServicoAutenticacao, ServicoAutenticacao>();
+        services.AddScoped<IServicoRefreshToken, ServicoRefreshToken>();
         services.AddScoped<IUsuarioAtual, UsuarioAtual>();
 
         // Seed
@@ -118,7 +119,8 @@ public static class DependencyInjection
         var issuer = config["Jwt:Issuer"] ?? "CodeQuest";
         var audience = config["Jwt:Audience"] ?? "CodeQuest";
         var expira = int.TryParse(config["Jwt:ExpiraEmMinutos"], out var minutos) ? minutos : 60;
+        var refreshDias = int.TryParse(config["Jwt:RefreshExpiraEmDias"], out var dias) ? dias : 30;
 
-        return new OpcoesJwt(secret, issuer, audience, expira);
+        return new OpcoesJwt(secret, issuer, audience, expira, refreshDias);
     }
 }

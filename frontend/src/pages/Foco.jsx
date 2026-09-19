@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client.js";
-import Nav from "../components/Nav.jsx";
+import Carregando from "../components/Carregando.jsx";
+import { IconTimer, IconCheckCircle, IconXCircle, IconZap } from "../components/icons.jsx";
 
 const DURACOES = [25, 50];
+const RAIO = 96;
+const CIRCUNFERENCIA = 2 * Math.PI * RAIO;
 
 // Timer Pomodoro (RF19): XP só é creditado se o timer completar — desistir não rende nada.
 export default function Foco() {
@@ -14,13 +17,17 @@ export default function Foco() {
   }, []);
 
   return (
-    <div className="content">
-      <Nav />
-      <div className="section-title" style={{ marginTop: 0 }}>
-        Foco
+    <div className="page">
+      <div className="page-header">
+        <h1>Foco</h1>
+        <p>Sessão Pomodoro — só rende XP se o timer completar.</p>
       </div>
       {erro && !topicos && <p className="erro">{erro}</p>}
-      {!topicos ? <p className="muted">Carregando…</p> : <Pomodoro topicos={topicos} />}
+      {!topicos ? (
+        <Carregando />
+      ) : (
+        <Pomodoro topicos={topicos} />
+      )}
     </div>
   );
 }
@@ -75,17 +82,36 @@ function Pomodoro({ topicos }) {
   }
 
   if (rodando) {
+    const totalSegundos = duracao * 60;
     const mm = String(Math.floor(segundosRestantes / 60)).padStart(2, "0");
     const ss = String(segundosRestantes % 60).padStart(2, "0");
+    const pct = segundosRestantes / totalSegundos;
+    const offset = CIRCUNFERENCIA * (1 - pct);
+
     return (
-      <div className="card" style={{ textAlign: "center", padding: 48 }}>
-        <div className="display" style={{ fontSize: 72 }}>
-          {mm}:{ss}
+      <div className="card timer-shell">
+        <div className="timer-ring">
+          <svg width={220} height={220} viewBox="0 0 220 220">
+            <circle cx="110" cy="110" r={RAIO} fill="none" stroke="var(--bg-base-alt)" strokeWidth={12} />
+            <circle
+              cx="110"
+              cy="110"
+              r={RAIO}
+              fill="none"
+              stroke="var(--streak)"
+              strokeWidth={12}
+              strokeLinecap="round"
+              strokeDasharray={CIRCUNFERENCIA}
+              strokeDashoffset={offset}
+              style={{ transition: "stroke-dashoffset 900ms linear" }}
+            />
+          </svg>
+          <span className="valor mono">
+            {mm}:{ss}
+          </span>
         </div>
-        <p className="muted" style={{ marginTop: 8 }}>
-          {topicos.find((t) => t.id === topicoId)?.nome}
-        </p>
-        <button className="btn btn-ghost" style={{ marginTop: 24 }} onClick={desistir}>
+        <p className="muted">{topicos.find((t) => t.id === topicoId)?.nome}</p>
+        <button className="btn btn-ghost" onClick={desistir}>
           Desistir
         </button>
       </div>
@@ -95,7 +121,7 @@ function Pomodoro({ topicos }) {
   return (
     <>
       <div className="card">
-        <div className="acoes" style={{ flexWrap: "wrap" }}>
+        <div className="form-row">
           <select className="campo" value={topicoId ?? ""} onChange={(e) => setTopicoId(Number(e.target.value))}>
             {topicos.map((t) => (
               <option key={t.id} value={t.id}>
@@ -103,25 +129,15 @@ function Pomodoro({ topicos }) {
               </option>
             ))}
           </select>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="duracao-toggle" style={{ flex: "0 0 auto" }}>
             {DURACOES.map((d) => (
-              <button
-                key={d}
-                type="button"
-                className="campo"
-                onClick={() => setDuracao(d)}
-                style={{
-                  cursor: "pointer",
-                  border: duracao === d ? "1px solid var(--info)" : undefined,
-                  color: duracao === d ? "var(--info)" : undefined,
-                }}
-              >
+              <button key={d} type="button" className={duracao === d ? "ativo" : ""} onClick={() => setDuracao(d)}>
                 {d} min
               </button>
             ))}
           </div>
-          <button className="btn btn-primary" onClick={iniciar} disabled={!topicoId}>
-            Iniciar
+          <button className="btn btn-primary" onClick={iniciar} disabled={!topicoId} style={{ flex: "0 0 auto" }}>
+            <IconTimer size={16} /> Iniciar
           </button>
         </div>
       </div>
@@ -129,17 +145,23 @@ function Pomodoro({ topicos }) {
       {erro && <p className="erro">{erro}</p>}
 
       {resultado && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <strong style={{ color: resultado.completou ? "var(--success)" : "var(--medium)" }}>
-            {resultado.completou ? "Sessão completa!" : "Sessão interrompida"}
-          </strong>
+        <div className="card" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="rotulo-e-icone" style={{ color: resultado.completou ? "var(--success)" : "var(--danger)" }}>
+            {resultado.completou ? <IconCheckCircle size={20} /> : <IconXCircle size={20} />}
+            <strong>{resultado.completou ? "Sessão completa!" : "Sessão interrompida"}</strong>
+          </div>
           <p className="muted">
             {resultado.minutosReais} de {resultado.minutosPlanejados} min.
-            {resultado.completou ? ` +${resultado.xpGanho} XP.` : " Sem XP — o timer não completou."}
           </p>
+          {resultado.completou ? (
+            <p className="feedback">
+              <IconZap /> +{resultado.xpGanho} XP.
+            </p>
+          ) : (
+            <p className="muted">Sem XP — o timer não completou.</p>
+          )}
         </div>
       )}
     </>
   );
 }
-
