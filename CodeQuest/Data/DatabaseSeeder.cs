@@ -23,7 +23,7 @@ public sealed class DatabaseSeeder : ISeeder
 
     public DatabaseSeeder(AppDbContext db) => _db = db;
 
-    /// <summary>Currículo junior fullstack — seção 3 do plano-codequest.md (10 módulos + tópicos).</summary>
+    /// <summary>Currículo junior fullstack (seção 3 do plano-codequest.md) + trilha avançada pós-junior (16 módulos + tópicos).</summary>
     private static readonly (int Ordem, string Nome, string[] Topicos)[] Curriculo =
     [
         (1, "Fundamentos C#",
@@ -46,6 +46,22 @@ public sealed class DatabaseSeeder : ISeeder
             ["Testes unitários (xUnit)", "SOLID básico", "Code review", "Clean code"]),
         (10, "Deploy & mundo real",
             ["Publicação (Fly.io/Railway)", "Variáveis de ambiente", "Logs", "CI básico (GitHub Actions)"]),
+
+        // Trilha avançada pós-junior — plano de estudo de 2026-09.
+        (11, "Design Patterns & Clean Code",
+            ["Padrões criacionais (Factory, Builder)", "Padrões estruturais (Adapter, Decorator)",
+             "Padrões comportamentais (Strategy, Observer)", "Refatoração de código legado", "SOLID aplicado"]),
+        (12, "Protocolos HTTP & Web",
+            ["HTTP/1.1 vs HTTP/2 vs HTTP/3", "Headers e cache", "Cookies e sessions", "CORS", "HTTPS/TLS", "WebSockets"]),
+        (13, "Microsserviços",
+            ["Comunicação entre serviços", "API Gateway", "Service discovery", "Orquestração (Docker/Kubernetes básico)",
+             "Resiliência (circuit breaker, retry)"]),
+        (14, "Mensageria (RabbitMQ)",
+            ["Filas e exchanges", "Publish/Subscribe", "Consumidores e acks", "Dead-letter queues", "RabbitMQ com Docker"]),
+        (15, "Observabilidade",
+            ["Logging estruturado", "Métricas", "Tracing distribuído", "Alertas", "Health checks"]),
+        (16, "Cloud (Azure/AWS)",
+            ["Azure SQL / RDS", "Blob Storage / S3", "AKS / EKS (Kubernetes)", "IAM/Identity", "Custos e monitoramento"]),
     ];
 
     /// <summary>
@@ -55,6 +71,7 @@ public sealed class DatabaseSeeder : ISeeder
     private static readonly (int Modulo, int Requer)[] Prereqs =
     [
         (2, 1), (3, 2), (4, 2), (5, 3), (5, 4), (6, 5), (7, 3), (8, 1), (9, 2), (10, 6), (10, 9),
+        (11, 9), (12, 6), (13, 12), (13, 11), (14, 13), (15, 10), (16, 15),
     ];
 
     /// <summary>Catálogo da loja — seção 2 do plano ("Gold e loja"). Descanso comprado é sem culpa.</summary>
